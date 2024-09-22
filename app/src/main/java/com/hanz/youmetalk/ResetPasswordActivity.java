@@ -1,6 +1,7 @@
 package com.hanz.youmetalk;
 
 import android.os.Bundle;
+import android.widget.Button;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -8,17 +9,33 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.google.android.material.textfield.TextInputEditText;
+import com.hanz.youmetalk.databinding.ActivityResetPasswordBinding;
+import com.hanz.youmetalk.databinding.ActivitySignUpBinding;
+
 public class ResetPasswordActivity extends AppCompatActivity {
+    private ActivityResetPasswordBinding resetPasswordLayout;
+    private TextInputEditText editTextForget;
+    private Button buttonForget;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Inflating the layout takes the XML source and makes View objects
+        resetPasswordLayout = ActivityResetPasswordBinding.inflate(getLayoutInflater());
+        // Get the root View
+        setContentView(resetPasswordLayout.getRoot());
+
         EdgeToEdge.enable(this);
-        setContentView(R.layout.activity_reset_password);
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+        // Assign values
+        editTextForget = resetPasswordLayout.editTextForget;
+        buttonForget = resetPasswordLayout.buttonForget;
+
     }
 }
