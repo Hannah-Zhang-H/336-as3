@@ -1,16 +1,23 @@
 package com.hanz.youmetalk;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.firebase.auth.AuthResult;
+import com.google.firebase.auth.FirebaseAuth;
 import com.hanz.youmetalk.databinding.ActivityLoginBinding;
 import com.hanz.youmetalk.databinding.ActivityMainBinding;
 
@@ -20,6 +27,9 @@ public class LoginActivity extends AppCompatActivity {
     private TextInputEditText editTextEmail, editTextPassword;
     private Button buttonSignin;
     private TextView textViewSignup, textViewForget;
+
+    // Database
+    FirebaseAuth auth;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,5 +51,46 @@ public class LoginActivity extends AppCompatActivity {
         buttonSignin = loginLayout.buttonSignin;
         textViewSignup = loginLayout.textViewSignup;
         textViewForget = loginLayout.textViewForgetPassword;
+        auth = FirebaseAuth.getInstance();
+
+
+        // Add click listener to buttonSignin
+        buttonSignin.setOnClickListener(view -> {
+            String email = editTextEmail.getText().toString();
+            String password = editTextPassword.getText().toString();
+            if (!email.equals("") && !password.equals("")) signin(email, password);
+            else
+                Toast.makeText(LoginActivity.this, "Please enter an email and password.", Toast.LENGTH_SHORT).show();
+
+        });
+
+
+        textViewSignup.setOnClickListener(view -> {
+            Intent intent = new Intent(this, SignUpActivity.class);
+            startActivity(intent);
+        });
+
+        textViewForget.setOnClickListener(view -> {
+            Intent intent = new Intent(this, ResetPasswordActivity.class);
+            startActivity(intent);
+        });
     }
+
+
+    public void signin(String email, String password) {
+        auth.signInWithEmailAndPassword(email, password).addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+            @Override
+            public void onComplete(@NonNull Task<AuthResult> task) {
+                if (task.isSuccessful()) {
+                    Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                    startActivity(intent);
+                    Toast.makeText(LoginActivity.this, "Sign in successful.", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(LoginActivity.this, "Sign in not successful.", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+    }
+
+
 }
