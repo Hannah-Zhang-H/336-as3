@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "918033523648",
+    "project_id": "youmetalk-3bef1",
+    "storage_bucket": "youmetalk-3bef1.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:918033523648:android:9cab027d1373b671e29e25",
+        "android_client_info": {
+          "package_name": "com.hanz.youmetalk"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAASZ5htO8-Yu7GKGInxyZh0G58BUPH88Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
