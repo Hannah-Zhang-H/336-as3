@@ -7,4 +7,7 @@
     <string name="email">Email</string>
     <string name="loginpic">LoginPic</string>
     <string name="forget_password">Forget password</string>
+    <string name="user_name">User Name</string>
+    <string name="profile">Profile</string>
+    <string name="sign_out">Sign Out</string>
 </resources>
