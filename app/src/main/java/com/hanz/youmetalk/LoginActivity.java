@@ -18,6 +18,7 @@ import com.google.android.gms.tasks.Task;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.hanz.youmetalk.databinding.ActivityLoginBinding;
 import com.hanz.youmetalk.databinding.ActivityMainBinding;
 
@@ -30,6 +31,15 @@ public class LoginActivity extends AppCompatActivity {
 
     // Database
     FirebaseAuth auth;
+    FirebaseUser firebaseUser;
+
+    // When a user has logged in, then come back to the app, then should display MainActivity.
+    @Override
+    protected void onStart() {
+        super.onStart();
+        firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (firebaseUser != null) startActivity(new Intent(this, MainActivity.class));
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,7 +68,7 @@ public class LoginActivity extends AppCompatActivity {
         buttonSignin.setOnClickListener(view -> {
             String email = editTextEmail.getText().toString();
             String password = editTextPassword.getText().toString();
-            if (!email.equals("") && !password.equals("")) signin(email, password);
+            if (!email.isEmpty() && !password.isEmpty()) signIn(email, password);
             else
                 Toast.makeText(LoginActivity.this, "Please enter an email and password.", Toast.LENGTH_SHORT).show();
 
@@ -77,18 +87,15 @@ public class LoginActivity extends AppCompatActivity {
     }
 
 
-    public void signin(String email, String password) {
-        auth.signInWithEmailAndPassword(email, password).addOnCompleteListener(new OnCompleteListener<AuthResult>() {
-            @Override
-            public void onComplete(@NonNull Task<AuthResult> task) {
-                if (task.isSuccessful()) {
-                    Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-                    startActivity(intent);
-                    Toast.makeText(LoginActivity.this, "Sign in successful.", Toast.LENGTH_SHORT).show();
-                } else {
-                    Toast.makeText(LoginActivity.this, "Sign in not successful.", Toast.LENGTH_SHORT).show();
-                }
-            }
+    public void signIn(String email, String password) {
+        auth.signInWithEmailAndPassword(email, password).addOnCompleteListener(task -> {
+            if (task.isSuccessful()) {
+                Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                startActivity(intent);
+                Toast.makeText(LoginActivity.this, "Sign in successful.", Toast.LENGTH_SHORT).show();
+            } else
+                Toast.makeText(LoginActivity.this, "Sign in not successful.", Toast.LENGTH_SHORT).show();
+
         });
     }
 

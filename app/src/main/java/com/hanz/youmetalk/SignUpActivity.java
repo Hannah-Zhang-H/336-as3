@@ -7,26 +7,20 @@ import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.android.gms.tasks.Task;
 import com.google.android.material.textfield.TextInputEditText;
-import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
-import com.google.firebase.storage.UploadTask;
-import com.hanz.youmetalk.databinding.ActivityLoginBinding;
 import com.hanz.youmetalk.databinding.ActivitySignUpBinding;
 import com.squareup.picasso.Picasso;
 
@@ -51,6 +45,9 @@ public class SignUpActivity extends AppCompatActivity {
     FirebaseStorage firebaseStorage;
     StorageReference storageReference;
 
+    private ActivityResultLauncher<Intent> imageChooserLauncher;
+
+
     Uri imageUri;
 
 
@@ -68,6 +65,24 @@ public class SignUpActivity extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+
+        // Init ActivityResultLauncher
+        imageChooserLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK) {
+                        Intent data = result.getData();
+                        if (data != null) {
+                            imageUri = data.getData();
+                            Picasso.get().load(imageUri).into(imageViewCircle);
+                            imageControl = true;
+                        }
+                    } else {
+                        imageControl = false;
+                    }
+                });
+
 
         // Assign values
         imageViewCircle = signUpLayout.imageViewCircle;
@@ -141,26 +156,14 @@ public class SignUpActivity extends AppCompatActivity {
         });
     }
 
-    public void imageChooser()
-    {
+    public void imageChooser() {
         Intent intent = new Intent();
         intent.setType("image/*");
         intent.setAction(Intent.ACTION_GET_CONTENT);
-        startActivityForResult(intent, 1);
+        imageChooserLauncher.launch(intent);
     }
 
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if(requestCode == 1 && resultCode == RESULT_OK && data !=null)
-        {
-            imageUri = data.getData();
-            Picasso.get().load(imageUri).into(imageViewCircle);
-            imageControl = true;
-        }
-        else {
-            imageControl = false;
-        }
-    }
+
+
 }
