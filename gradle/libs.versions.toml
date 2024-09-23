@@ -12,6 +12,7 @@ googleGmsGoogleServices = "4.4.2"
 firebaseAuth = "23.0.0"
 firebaseDatabase = "21.0.0"
 firebaseStorage = "21.0.0"
+picasso = "2.8"
 
 [libraries]
 circleimageview = { module = "de.hdodenhof:circleimageview", version.ref = "circleimageview" }
@@ -25,6 +26,7 @@ constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayo
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth", version.ref = "firebaseAuth" }
 firebase-database = { group = "com.google.firebase", name = "firebase-database", version.ref = "firebaseDatabase" }
 firebase-storage = { group = "com.google.firebase", name = "firebase-storage", version.ref = "firebaseStorage" }
+picasso = { module = "com.squareup.picasso:picasso", version.ref = "picasso" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
