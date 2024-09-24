@@ -151,7 +151,7 @@ public class SignUpActivity extends AppCompatActivity {
                 startActivity(intent);
                 finish();
             }
-            else Toast.makeText(this, "Invalid input.", Toast.LENGTH_SHORT).show();
+            else Toast.makeText(this, "Invalid input???.", Toast.LENGTH_SHORT).show();
 
         });
     }
