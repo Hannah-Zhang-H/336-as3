@@ -1,6 +1,8 @@
 package com.hanz.youmetalk;
 
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.widget.Button;
@@ -15,6 +17,8 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -29,9 +33,12 @@ import com.hanz.youmetalk.databinding.ActivityMainBinding;
 import com.hanz.youmetalk.databinding.ActivityProfileBinding;
 import com.squareup.picasso.Picasso;
 
+import java.io.FileNotFoundException;
 import java.util.UUID;
 
 import de.hdodenhof.circleimageview.CircleImageView;
+import java.io.ByteArrayOutputStream;
+
 
 public class ProfileActivity extends AppCompatActivity {
     private ActivityProfileBinding profileLayout;
@@ -53,9 +60,6 @@ public class ProfileActivity extends AppCompatActivity {
     boolean imageControl = false;
 
     String image;
-
-
-
 
 
     @Override
@@ -110,67 +114,112 @@ public class ProfileActivity extends AppCompatActivity {
         });
 
         buttonUpdate.setOnClickListener(view -> {
-            updateProfile();
+            try {
+                updateProfile();
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException(e);
+            }
         });
     }
 
 
     public void getUserInfo() {
-        reference.child("Users").child(firebaseUser.getUid()).addValueEventListener(new ValueEventListener() {
+        reference.child("Users").child(firebaseUser.getUid()).addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                String name = snapshot.child("userName").getValue().toString();
-                image = snapshot.child("image").getValue().toString();
-                editTextUserNameUpdate.setText(name);
+                // 确保数据存在
+                if (snapshot.exists()) {
+                    String name = snapshot.child("userName").getValue(String.class);
+                    image = snapshot.child("image").getValue(String.class);
 
-                if (image.equals("null")) imageViewProfile.setImageResource(R.drawable.account);
-                else {
-                    Picasso.get().load(image).into(imageViewProfile);
+                    // 防止空指针异常
+                    if (name != null) {
+                        editTextUserNameUpdate.setText(name);
+                    }
+
+                    if (image != null && !image.equals("null")) {
+                        Glide.with(ProfileActivity.this)
+                                .load(image)
+                                .placeholder(R.drawable.account)
+                                .error(R.drawable.account)
+                                .diskCacheStrategy(DiskCacheStrategy.ALL) // 使用 Glide 的全缓存策略
+                                .into(imageViewProfile);
+                    } else {
+                        imageViewProfile.setImageResource(R.drawable.account);
+                    }
                 }
-
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-
+                Toast.makeText(ProfileActivity.this, "Failed to load user info.", Toast.LENGTH_SHORT).show();
             }
         });
     }
 
+    public void updateProfile() throws FileNotFoundException {
+        String userName = editTextUserNameUpdate.getText().toString().trim();
 
-    public void updateProfile() {
-        String userName = editTextUserNameUpdate.getText().toString();
+        if (userName.isEmpty()) {
+            Toast.makeText(this, "Username cannot be empty.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        buttonUpdate.setEnabled(false); // 禁用按钮以防止重复上传
         reference.child("Users").child(firebaseUser.getUid()).child("userName").setValue(userName);
 
-        if(imageControl)
-        {
-            UUID randomID = UUID.randomUUID();
-            String imageName = "images/" + randomID + ".jpg";
-            storageReference.child(imageName).putFile(imageUri).addOnSuccessListener(taskSnapshot -> {
-                StorageReference myStorageRef = firebaseStorage.getReference(imageName);
-                myStorageRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                    String filePath = uri.toString();
-                    reference.child("Users").child(auth.getUid()).child("image").setValue(filePath).addOnSuccessListener(unused -> {
-                        Toast.makeText(this, "Successfully stored to database.", Toast.LENGTH_SHORT).show();
-                    }).addOnFailureListener(e -> {
-                        Toast.makeText(this, "Failed to store to database.", Toast.LENGTH_SHORT).show();
+        if (imageControl) {
+            try {
+                // 1. 将 imageUri 转换为 Bitmap
+                BitmapFactory.Options options = new BitmapFactory.Options();
+                options.inSampleSize = 4; // 压缩比例
+                Bitmap bitmap = BitmapFactory.decodeStream(getContentResolver().openInputStream(imageUri), null, options);
 
+                // 2. 将 Bitmap 转换为字节数组
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 50, baos);
+                byte[] imageData = baos.toByteArray();
+
+                // 3. 上传压缩后的图片
+                UUID randomID = UUID.randomUUID();
+                String imageName = "images/" + randomID + ".jpg";
+                StorageReference imageRef = storageReference.child(imageName);
+
+                imageRef.putBytes(imageData).addOnSuccessListener(taskSnapshot -> {
+                    imageRef.getDownloadUrl().addOnSuccessListener(uri -> {
+                        String filePath = uri.toString();
+                        reference.child("Users").child(auth.getUid()).child("image").setValue(filePath)
+                                .addOnSuccessListener(unused -> {
+                                    Toast.makeText(this, "Profile updated successfully.", Toast.LENGTH_SHORT).show();
+                                    navigateToMainActivity(userName);
+                                })
+                                .addOnFailureListener(e -> {
+                                    Toast.makeText(this, "Failed to update profile.", Toast.LENGTH_SHORT).show();
+                                    buttonUpdate.setEnabled(true); // 重新启用按钮
+                                });
                     });
-
+                }).addOnFailureListener(e -> {
+                    Toast.makeText(this, "Image upload failed.", Toast.LENGTH_SHORT).show();
+                    buttonUpdate.setEnabled(true); // 重新启用按钮
                 });
-            });
-        }
-        else {
-            reference.child("Users").child(auth.getUid()).child("image").setValue("null");
-        }
 
+            } catch (Exception e) {
+                e.printStackTrace();
+                Toast.makeText(this, "Error processing image.", Toast.LENGTH_SHORT).show();
+                buttonUpdate.setEnabled(true); // 重新启用按钮
+            }
+        } else {
+            reference.child("Users").child(auth.getUid()).child("image").setValue("null")
+                    .addOnCompleteListener(task -> navigateToMainActivity(userName));
+        }
+    }
+
+    private void navigateToMainActivity(String userName) {
         Intent intent = new Intent(this, MainActivity.class);
         intent.putExtra("userName", userName);
         startActivity(intent);
         finish();
-
     }
-
 
     public void imageChooser() {
         Intent intent = new Intent();
@@ -179,3 +228,4 @@ public class ProfileActivity extends AppCompatActivity {
         imageChooserLauncher.launch(intent);
     }
 }
+

@@ -12,6 +12,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.hanz.youmetalk.databinding.ActivityLoginBinding;
@@ -22,6 +24,7 @@ public class MainActivity extends AppCompatActivity {
 
     private ActivityMainBinding mainLayout;
     FirebaseAuth auth;
+    RecyclerView recyclerView;
 
 
     @Override
@@ -40,7 +43,10 @@ public class MainActivity extends AppCompatActivity {
 
         // Set up the toolbar
         setSupportActionBar(mainLayout.toolbar);
+
         auth = FirebaseAuth.getInstance();
+        recyclerView=mainLayout.recycleView;
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
     }
 
