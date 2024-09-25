@@ -42,7 +42,7 @@ public class MainActivity extends AppCompatActivity {
     FirebaseDatabase database;
 
     String userName;
-    List<String> list;
+    List<String> friendList;
     UsersAdapter usersAdapter;
 
     @Override
@@ -62,7 +62,7 @@ public class MainActivity extends AppCompatActivity {
         // Set up the toolbar
         setSupportActionBar(mainLayout.toolbar);
 
-        recyclerView=mainLayout.recycleView;
+        recyclerView = mainLayout.recycleView;
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         auth = FirebaseAuth.getInstance();
@@ -71,14 +71,14 @@ public class MainActivity extends AppCompatActivity {
         database = FirebaseDatabase.getInstance();
         reference = database.getReference();
 
-        list = new ArrayList<>();
+        friendList = new ArrayList<>();
 
         reference.child("Users").child(user.getUid()).child("userName").addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 userName = snapshot.getValue().toString();
                 getUsers();
-                usersAdapter = new UsersAdapter(MainActivity.this, list, userName);
+                usersAdapter = new UsersAdapter(MainActivity.this, friendList, userName);
                 recyclerView.setAdapter(usersAdapter);
             }
 
@@ -98,9 +98,8 @@ public class MainActivity extends AppCompatActivity {
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
                 String key = snapshot.getKey();
 
-                if(!key.equals(user.getUid()))
-                {
-                    list.add(key);
+                if (!key.equals(user.getUid())) {
+                    friendList.add(key);
                     usersAdapter.notifyDataSetChanged();
                 }
             }
@@ -137,12 +136,11 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        if(item.getItemId() == R.id.action_profile)
-        {
+        if (item.getItemId() == R.id.action_profile) {
             startActivity(new Intent(this, ProfileActivity.class));
         }
 
-        if(item.getItemId() == R.id.action_signout) {
+        if (item.getItemId() == R.id.action_signout) {
             auth.signOut();
             startActivity(new Intent(this, LoginActivity.class));
             finish();
