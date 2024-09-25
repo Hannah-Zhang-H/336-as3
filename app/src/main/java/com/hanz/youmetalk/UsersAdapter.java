@@ -1,6 +1,7 @@
 package com.hanz.youmetalk;
 
 import android.content.Context;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
@@ -16,17 +17,22 @@ import de.hdodenhof.circleimageview.CircleImageView;
 public class UsersAdapter extends RecyclerView.Adapter<UsersAdapter.ViewHolder> {
 
     List<String> userList;
-    private Context context;
+    Context context;
+    String userName;
 
-
-    public UsersAdapter(List<String> userList) {
+    public UsersAdapter(Context context, List<String> userList, String userName) {
+        this.context = context;
         this.userList = userList;
+        this.userName = userName;
     }
 
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        return null;
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.user_card, parent, false);
+
+
+        return new ViewHolder(view);
     }
 
     @Override

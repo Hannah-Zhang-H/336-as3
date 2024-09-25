@@ -1,5 +1,6 @@
 package com.hanz.youmetalk;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.Menu;
@@ -8,6 +9,7 @@ import android.view.MenuItem;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -16,8 +18,18 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.ChildEventListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 import com.hanz.youmetalk.databinding.ActivityLoginBinding;
 import com.hanz.youmetalk.databinding.ActivityMainBinding;
+
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -25,7 +37,13 @@ public class MainActivity extends AppCompatActivity {
     private ActivityMainBinding mainLayout;
     FirebaseAuth auth;
     RecyclerView recyclerView;
+    FirebaseUser user;
+    DatabaseReference reference;
+    FirebaseDatabase database;
 
+    String userName;
+    List<String> list;
+    UsersAdapter usersAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,10 +62,69 @@ public class MainActivity extends AppCompatActivity {
         // Set up the toolbar
         setSupportActionBar(mainLayout.toolbar);
 
-        auth = FirebaseAuth.getInstance();
         recyclerView=mainLayout.recycleView;
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
+        auth = FirebaseAuth.getInstance();
+        user = auth.getCurrentUser();
+
+        database = FirebaseDatabase.getInstance();
+        reference = database.getReference();
+
+        list = new ArrayList<>();
+
+        reference.child("Users").child(user.getUid()).child("userName").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                userName = snapshot.getValue().toString();
+                getUsers();
+                usersAdapter = new UsersAdapter(MainActivity.this, list, userName);
+                recyclerView.setAdapter(usersAdapter);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
+
+
+    }
+
+    private void getUsers() {
+        reference.child("Users").addChildEventListener(new ChildEventListener() {
+            @SuppressLint("NotifyDataSetChanged")
+            @Override
+            public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                String key = snapshot.getKey();
+
+                if(!key.equals(user.getUid()))
+                {
+                    list.add(key);
+                    usersAdapter.notifyDataSetChanged();
+                }
+            }
+
+            @Override
+            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+
+            }
+
+            @Override
+            public void onChildRemoved(@NonNull DataSnapshot snapshot) {
+
+            }
+
+            @Override
+            public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
     }
 
     @Override
