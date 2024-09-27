@@ -1,13 +1,16 @@
 package com.hanz.youmetalk;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -18,6 +21,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.firebase.database.ChildEventListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.hanz.youmetalk.databinding.ActivityMyTalkBinding;
@@ -89,8 +95,48 @@ public class MyTalkActivity extends AppCompatActivity {
             }
         });
 
-
+        getMessage();
     }
+
+    private void getMessage() {
+        reference.child("Messages").child(userName).child(friendName).addChildEventListener(new ChildEventListener() {
+            @SuppressLint("NotifyDataSetChanged")
+            @Override
+            public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                Model model = snapshot.getValue(Model.class);
+                list.add(model);
+                messageAdapter.notifyDataSetChanged();
+                recyclerViewMessageArea.scrollToPosition(list.size()-1);
+
+
+
+            }
+
+            @Override
+            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+
+            }
+
+            @Override
+            public void onChildRemoved(@NonNull DataSnapshot snapshot) {
+
+            }
+
+            @Override
+            public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
+
+        messageAdapter = new MessageAdapter(list, userName);
+        recyclerViewMessageArea.setAdapter(messageAdapter);
+    }
+
 
     private void sendMessage(String message) {
         // Make sure each message has a unique identifier, otherwise whenever the user delete one message,
