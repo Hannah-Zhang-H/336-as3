@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -21,7 +22,9 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.hanz.youmetalk.databinding.ActivityMyTalkBinding;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class MyTalkActivity extends AppCompatActivity {
@@ -38,6 +41,9 @@ public class MyTalkActivity extends AppCompatActivity {
     FirebaseDatabase database;
     DatabaseReference reference;
 
+    MessageAdapter messageAdapter;
+    List<Model> list;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,10 +58,16 @@ public class MyTalkActivity extends AppCompatActivity {
         });
 
         recyclerViewMessageArea = myTalkLayout.recyclerViewTalkArea;
+        recyclerViewMessageArea.setLayoutManager(new LinearLayoutManager(this));
+        list = new ArrayList<>();
+
+
         imageViewBack = myTalkLayout.imageViewBack;
         textViewChatFriendName = myTalkLayout.textViewChatFriendName;
         editTextMessage = myTalkLayout.editTextMessage;
         fab = myTalkLayout.fab;
+
+
 
         userName = getIntent().getStringExtra("userName");
         friendName = getIntent().getStringExtra("friendName");
