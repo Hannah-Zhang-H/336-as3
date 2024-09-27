@@ -43,5 +43,6 @@ public class MyTalkActivity extends AppCompatActivity {
         editTextMessage = myTalkLayout.editTextMessage;
         fab = myTalkLayout.fab;
 
+
     }
 }
