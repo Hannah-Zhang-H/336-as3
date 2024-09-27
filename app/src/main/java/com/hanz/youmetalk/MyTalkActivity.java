@@ -1,19 +1,28 @@
 package com.hanz.youmetalk;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 import com.hanz.youmetalk.databinding.ActivityMyTalkBinding;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class MyTalkActivity extends AppCompatActivity {
 
@@ -23,6 +32,11 @@ public class MyTalkActivity extends AppCompatActivity {
     private TextView textViewChatFriendName;
     private EditText editTextMessage;
     private FloatingActionButton fab;
+
+    String userName, friendName;
+
+    FirebaseDatabase database;
+    DatabaseReference reference;
 
 
     @Override
@@ -43,6 +57,44 @@ public class MyTalkActivity extends AppCompatActivity {
         editTextMessage = myTalkLayout.editTextMessage;
         fab = myTalkLayout.fab;
 
+        userName = getIntent().getStringExtra("userName");
+        friendName = getIntent().getStringExtra("friendName");
+
+        database = FirebaseDatabase.getInstance();
+        reference = database.getReference();
+
+        textViewChatFriendName.setText(friendName);
+
+        imageViewBack.setOnClickListener(view ->
+                startActivity(new Intent(this, MainActivity.class))
+        );
+
+        fab.setOnClickListener(view -> {
+            String message = editTextMessage.getText().toString();
+            if (!message.isEmpty()) {
+                sendMessage(message);
+                editTextMessage.setText("");
+            }
+        });
+
+
+    }
+
+    private void sendMessage(String message) {
+        // Make sure each message has a unique identifier, otherwise whenever the user delete one message,
+        //  the same message on friend's phone will also get deleted.
+        String key = reference.child("Messages").child(userName).child(friendName).push().getKey();
+        Map<String, Object> messageMap = new HashMap<>();
+        messageMap.put("message", message);
+        messageMap.put("from", userName);
+
+        // Save the data into the database
+        reference.child("Messages").child(userName).child(friendName).child(key).setValue(messageMap).addOnCompleteListener(task -> {
+            if(task.isSuccessful())
+            {
+                reference.child("Messages").child(friendName).child(userName).child(key).setValue(messageMap);
+            }
+        });
 
     }
 }
