@@ -127,17 +127,16 @@ public class ProfileActivity extends AppCompatActivity {
         reference.child("Users").child(firebaseUser.getUid()).addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                // 确保数据存在
                 if (snapshot.exists()) {
                     String name = snapshot.child("userName").getValue(String.class);
                     image = snapshot.child("image").getValue(String.class);
 
-                    // 防止空指针异常
                     if (name != null) {
                         editTextUserNameUpdate.setText(name);
                     }
 
-                    if (image != null && !image.equals("null")) {
+                    // 确保Activity未被销毁后再使用Glide加载图片
+                    if (image != null && !image.equals("null") && !isDestroyed() && !isFinishing()) {
                         Glide.with(ProfileActivity.this)
                                 .load(image)
                                 .placeholder(R.drawable.account)
@@ -156,6 +155,7 @@ public class ProfileActivity extends AppCompatActivity {
             }
         });
     }
+
 
     public void updateProfile() throws FileNotFoundException {
         String userName = editTextUserNameUpdate.getText().toString().trim();

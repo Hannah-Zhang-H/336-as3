@@ -50,4 +50,5 @@ dependencies {
     implementation(libs.circleimageview)
     implementation(libs.picasso)
     implementation(libs.glide)
+    annotationProcessor(libs.compiler)
 }

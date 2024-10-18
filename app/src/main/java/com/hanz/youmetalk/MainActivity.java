@@ -1,25 +1,14 @@
 package com.hanz.youmetalk;
 
-import android.annotation.SuppressLint;
 import android.content.Intent;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
-import android.view.View;
-import android.view.WindowInsetsController;
-
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowCompat;
-import androidx.core.view.WindowInsetsCompat;
-import androidx.core.graphics.Insets;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -28,7 +17,7 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.database.annotations.Nullable;
 import com.hanz.youmetalk.databinding.ActivityMainBinding;
 
 import java.util.ArrayList;
@@ -43,68 +32,54 @@ public class MainActivity extends AppCompatActivity {
     FirebaseDatabase database;
 
     String userName;
-    List<String> friendList;
-    UsersAdapter usersAdapter;
+    List<User> friendList;
+    ContactAdapter contactAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // enable edge to edge mode
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-
         // Inflate the layout
-        com.hanz.youmetalk.databinding.ActivityMainBinding mainLayout = ActivityMainBinding.inflate(getLayoutInflater());
+        ActivityMainBinding mainLayout = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(mainLayout.getRoot());
 
-        // handle WindowInsets
-        View rootView = findViewById(R.id.main);
-        ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
-            Insets systemBarsInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(0, systemBarsInsets.top, 0, 0);
-            return WindowInsetsCompat.CONSUMED;
-        });
-
-        // get WindowInsetsController
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            WindowInsetsController windowInsetsController = getWindow().getInsetsController();
-            if (windowInsetsController != null) {
-                // hide navigation bar
-                windowInsetsController.hide(android.view.WindowInsets.Type.navigationBars());
-                windowInsetsController.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-            }
-        }
-
-        // set Toolbar
+        // Set up the toolbar
         setSupportActionBar(mainLayout.toolbar);
 
-        // set RecyclerView
+        // Initialize RecyclerView
         recyclerView = mainLayout.recycleView;
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setHasFixedSize(true);
 
-        // Firebase init
+        // Firebase initialization
         auth = FirebaseAuth.getInstance();
         user = auth.getCurrentUser();
         database = FirebaseDatabase.getInstance();
         reference = database.getReference();
 
+        // Initialize lists and adapters
         friendList = new ArrayList<>();
+        contactAdapter = new ContactAdapter(this, friendList);
 
-        // load user data
-        loadUserData();
+        // Set default adapter
+        recyclerView.setAdapter(contactAdapter);
+        loadContactData();
 
-        // set BottomNavigationView
-        BottomNavigationView bottomNavigationView = findViewById(R.id.bottom_navigation);
+        // Set BottomNavigationView click listener
+        BottomNavigationView bottomNavigationView = mainLayout.bottomNavigation;
         bottomNavigationView.setOnItemSelectedListener(item -> {
             int itemId = item.getItemId();
 
             if (itemId == R.id.action_chat) {
+                // Add chat adapter logic here if needed
                 return true;
             } else if (itemId == R.id.action_contact) {
+                recyclerView.setAdapter(contactAdapter);
+                loadContactData(); // Load contact data
                 return true;
             } else if (itemId == R.id.action_profile) {
-                startActivity(new Intent(MainActivity.this, ProfileActivity.class));
+                Intent intent = new Intent(MainActivity.this, ProfileActivity.class);
+                startActivity(intent);
                 return true;
             }
 
@@ -112,40 +87,41 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void loadUserData() {
-        reference.child("Users").child(user.getUid()).child("userName").addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                userName = snapshot.getValue(String.class);
-                getUsers();
-                usersAdapter = new UsersAdapter(MainActivity.this, friendList, userName);
-                recyclerView.setAdapter(usersAdapter);
-            }
+    // Load the contact data from Firebase
+    private void loadContactData() {
+        // Clear the list before adding new data
+        friendList.clear();
 
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-
-            }
-        });
-    }
-
-    private void getUsers() {
         reference.child("Users").addChildEventListener(new ChildEventListener() {
-            @SuppressLint("NotifyDataSetChanged")
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                String key = snapshot.getKey();
-                if (key != null && !key.equals(user.getUid())) {
-                    friendList.add(key);
-                    usersAdapter.notifyDataSetChanged();
+                User user = snapshot.getValue(User.class);
+
+                if (user != null) {
+                    // Use Firebase unique key as user ID
+                    user.setId(snapshot.getKey());
+
+                    // Get the image URL from the snapshot and set it to the User object
+                    String imageUrl = snapshot.child("image").getValue(String.class);
+                    user.setImage(imageUrl);  // Set the image URL to the User object
+
+                    // Avoid adding the current user to the friend list
+                    if (user.getId() != null && !user.getId().equals(auth.getCurrentUser().getUid())) {
+                        friendList.add(user);
+                        contactAdapter.notifyDataSetChanged();  // Notify adapter to refresh RecyclerView
+                    }
                 }
             }
 
             @Override
-            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) { }
+            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                // Handle user data changes if necessary
+            }
 
             @Override
-            public void onChildRemoved(@NonNull DataSnapshot snapshot) { }
+            public void onChildRemoved(@NonNull DataSnapshot snapshot) {
+                // Handle user removal if necessary
+            }
 
             @Override
             public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) { }
@@ -155,21 +131,28 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+
+    // Inflate the menu for profile and logout options
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater menuInflater = getMenuInflater();
-        menuInflater.inflate(R.menu.chat_menu, menu);
+        menuInflater.inflate(R.menu.chat_menu, menu); // Ensure you have chat_menu.xml in res/menu
         return true;
     }
 
+    // Handle menu item clicks
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         if (item.getItemId() == R.id.action_profile) {
+            // Navigate to Profile Activity
             startActivity(new Intent(this, ProfileActivity.class));
+            return true;
         } else if (item.getItemId() == R.id.action_signout) {
+            // Sign out and go to Login Activity
             auth.signOut();
             startActivity(new Intent(this, LoginActivity.class));
             finish();
+            return true;
         }
 
         return super.onOptionsItemSelected(item);

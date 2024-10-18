@@ -1,16 +1,18 @@
 package com.hanz.youmetalk;
 
 public class Model {
-    String message;
-    String from;
+    private String message;
+    private String from;
+    private String image;  // 确保有这个字段
 
+    public Model() {}
 
-    public Model(String from, String message) {
-        this.from = from;
-        this.message = message;
+    public String getMessage() {
+        return message;
     }
 
-    public Model() {
+    public void setMessage(String message) {
+        this.message = message;
     }
 
     public String getFrom() {
@@ -21,11 +23,11 @@ public class Model {
         this.from = from;
     }
 
-    public String getMessage() {
-        return message;
+    public String getImage() {
+        return image;  // 确保 getImage 正常返回 URL
     }
 
-    public void setMessage(String message) {
-        this.message = message;
+    public void setImage(String image) {
+        this.image = image;
     }
 }
