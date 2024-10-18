@@ -36,6 +36,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".ContactActivity"
+            android:exported="false"
+            android:launchMode="singleTask"/>
     </application>
-
+    <uses-permission android:name="android.permission.INTERNET"/>
 </manifest>

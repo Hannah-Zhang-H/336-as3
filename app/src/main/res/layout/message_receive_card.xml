@@ -3,80 +3,40 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="3dp">
+    android:padding="8dp">
 
+    <!-- ImageView for the sender's profile picture -->
+    <ImageView
+        android:id="@+id/imageViewReceived"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="8dp"
+        android:src="@drawable/profile_placeholder"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <!-- CardView for the received message -->
     <androidx.cardview.widget.CardView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:background="#C0C1C0"
-        app:cardBackgroundColor="@color/gray_200"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="4dp"
         app:cardCornerRadius="5dp"
         app:cardElevation="3dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/textViewReceived"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        tools:ignore="NotSibling">
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toEndOf="@id/imageViewReceived">
 
         <TextView
             android:id="@+id/textViewReceived"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:padding="10dp"
-            android:text="TextView"
-            android:textColor="#020202"
+            android:text="Received message"
+            android:textColor="@android:color/black"
             android:textSize="16sp" />
     </androidx.cardview.widget.CardView>
+
 </androidx.constraintlayout.widget.ConstraintLayout>
-
-
-    <!--<?xml version="1.0" encoding="utf-8"?>-->
-<!--<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"-->
-<!--    xmlns:app="http://schemas.android.com/apk/res-auto"-->
-<!--    xmlns:tools="http://schemas.android.com/tools"-->
-<!--    android:layout_width="match_parent"-->
-<!--    android:layout_height="match_parent"-->
-<!--    android:layout_margin="3dp"-->
-<!--    android:padding="3dp">-->
-
-<!--    <androidx.constraintlayout.widget.ConstraintLayout-->
-<!--        android:layout_width="300dp"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        app:layout_constraintBottom_toBottomOf="parent"-->
-<!--        app:layout_constraintStart_toStartOf="parent"-->
-<!--        app:layout_constraintTop_toTopOf="parent"-->
-<!--        app:layout_constraintVertical_bias="0.078">-->
-
-<!--        <androidx.cardview.widget.CardView-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:background="#C0C1C0"-->
-<!--            app:cardCornerRadius="5dp"-->
-<!--            app:cardElevation="3dp"-->
-<!--            app:layout_constraintBottom_toBottomOf="parent"-->
-<!--            app:layout_constraintStart_toStartOf="parent"-->
-<!--            app:layout_constraintTop_toTopOf="parent">-->
-
-<!--            <androidx.constraintlayout.widget.ConstraintLayout-->
-<!--                android:layout_width="wrap_content"-->
-<!--                android:layout_height="wrap_content"-->
-<!--                android:layout_gravity="start"-->
-<!--                android:background="#C0C1C0">-->
-
-<!--                <TextView-->
-<!--                    android:id="@+id/textViewReceived"-->
-<!--                    android:layout_width="wrap_content"-->
-<!--                    android:layout_height="wrap_content"-->
-<!--                    android:gravity="start"-->
-<!--                    android:padding="10dp"-->
-<!--                    android:text="TextView"-->
-<!--                    android:textColor="#020202"-->
-<!--                    android:textSize="16sp"-->
-<!--                    app:layout_constraintBottom_toBottomOf="parent"-->
-<!--                    app:layout_constraintStart_toStartOf="parent"-->
-<!--                    app:layout_constraintTop_toTopOf="parent" />-->
-<!--            </androidx.constraintlayout.widget.ConstraintLayout>-->
-<!--        </androidx.cardview.widget.CardView>-->
-<!--    </androidx.constraintlayout.widget.ConstraintLayout>-->
-<!--</androidx.constraintlayout.widget.ConstraintLayout>-->
