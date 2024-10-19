@@ -29,29 +29,25 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
-import com.hanz.youmetalk.databinding.ActivityMainBinding;
 import com.hanz.youmetalk.databinding.ActivityProfileBinding;
 import com.squareup.picasso.Picasso;
 
+import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.util.UUID;
 
 import de.hdodenhof.circleimageview.CircleImageView;
-import java.io.ByteArrayOutputStream;
-
 
 public class ProfileActivity extends AppCompatActivity {
     private ActivityProfileBinding profileLayout;
     private CircleImageView imageViewProfile;
-    private TextInputEditText editTextUserNameUpdate;
+    private TextInputEditText editTextUserNameUpdate, editTextYouMeIdUpdate;
     private Button buttonUpdate;
 
     FirebaseAuth auth;
     FirebaseUser firebaseUser;
-
     FirebaseDatabase database;
     DatabaseReference reference;
-
     FirebaseStorage firebaseStorage;
     StorageReference storageReference;
 
@@ -59,15 +55,12 @@ public class ProfileActivity extends AppCompatActivity {
     Uri imageUri;
     boolean imageControl = false;
 
-    String image;
-
+    String currentImage, currentYouMeID;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Inflating the layout takes the XML source and makes View objects
         profileLayout = ActivityProfileBinding.inflate(getLayoutInflater());
-        // Get the root View
         setContentView(profileLayout.getRoot());
         EdgeToEdge.enable(this);
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -78,18 +71,16 @@ public class ProfileActivity extends AppCompatActivity {
 
         imageViewProfile = profileLayout.imageViewCircleProfile;
         editTextUserNameUpdate = profileLayout.editTextUserNameUpdate;
+        editTextYouMeIdUpdate = profileLayout.editTextYouMeIdUpdate;
         buttonUpdate = profileLayout.buttonUpdate;
 
         firebaseStorage = FirebaseStorage.getInstance();
         storageReference = firebaseStorage.getReference();
-
         database = FirebaseDatabase.getInstance();
         reference = database.getReference();
-
         auth = FirebaseAuth.getInstance();
         firebaseUser = auth.getCurrentUser();
 
-        // Init ActivityResultLauncher
         imageChooserLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
@@ -105,23 +96,16 @@ public class ProfileActivity extends AppCompatActivity {
                     }
                 });
 
-        // Call this function to display the current information of the user
         getUserInfo();
-
-
-        imageViewProfile.setOnClickListener(view -> {
-            imageChooser();
-        });
-
+        imageViewProfile.setOnClickListener(view -> imageChooser());
         buttonUpdate.setOnClickListener(view -> {
             try {
-                updateProfile();
+                checkAndUpdateProfile();
             } catch (FileNotFoundException e) {
                 throw new RuntimeException(e);
             }
         });
     }
-
 
     public void getUserInfo() {
         reference.child("Users").child(firebaseUser.getUid()).addListenerForSingleValueEvent(new ValueEventListener() {
@@ -129,16 +113,20 @@ public class ProfileActivity extends AppCompatActivity {
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 if (snapshot.exists()) {
                     String name = snapshot.child("userName").getValue(String.class);
-                    image = snapshot.child("image").getValue(String.class);
+                    currentYouMeID = snapshot.child("youMeID").getValue(String.class);
+                    currentImage = snapshot.child("image").getValue(String.class);
 
                     if (name != null) {
                         editTextUserNameUpdate.setText(name);
                     }
 
-                    // ensure the activity is not destroyed
-                    if (image != null && !image.equals("null") && !isDestroyed() && !isFinishing()) {
+                    if (currentYouMeID != null) {
+                        editTextYouMeIdUpdate.setText(currentYouMeID);
+                    }
+
+                    if (currentImage != null && !currentImage.equals("null") && !isDestroyed() && !isFinishing()) {
                         Glide.with(ProfileActivity.this)
-                                .load(image)
+                                .load(currentImage)
                                 .placeholder(R.drawable.account)
                                 .error(R.drawable.account)
                                 .diskCacheStrategy(DiskCacheStrategy.ALL)
@@ -156,31 +144,62 @@ public class ProfileActivity extends AppCompatActivity {
         });
     }
 
-
-    public void updateProfile() throws FileNotFoundException {
+    public void checkAndUpdateProfile() throws FileNotFoundException {
         String userName = editTextUserNameUpdate.getText().toString().trim();
+        String youMeID = editTextYouMeIdUpdate.getText().toString().trim();
 
-        if (userName.isEmpty()) {
-            Toast.makeText(this, "Username cannot be empty.", Toast.LENGTH_SHORT).show();
+        if (userName.isEmpty() || youMeID.isEmpty()) {
+            Toast.makeText(this, "Username or YouMeID cannot be empty.", Toast.LENGTH_SHORT).show();
             return;
         }
 
+        // Check if YouMeID is unique before proceeding
+        reference.child("Users").orderByChild("youMeID").equalTo(youMeID).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if (snapshot.exists() && !currentYouMeID.equals(youMeID)) {
+                    // YouMeID is already used by another user
+                    Toast.makeText(ProfileActivity.this, "YouMeID is already taken.", Toast.LENGTH_SHORT).show();
+                } else {
+                    // Proceed with the update
+                    try {
+                        updateProfile(userName, youMeID);
+                    } catch (FileNotFoundException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(ProfileActivity.this, "Failed to check YouMeID.", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    public void updateProfile(String userName, String youMeID) throws FileNotFoundException {
         buttonUpdate.setEnabled(false); // disable the button
-        reference.child("Users").child(firebaseUser.getUid()).child("userName").setValue(userName);
+
+        // Only update the fields that have changed
+        if (!userName.equals(editTextUserNameUpdate.getText().toString())) {
+            reference.child("Users").child(firebaseUser.getUid()).child("userName").setValue(userName);
+        }
+
+        if (!youMeID.equals(currentYouMeID)) {
+            reference.child("Users").child(firebaseUser.getUid()).child("youMeID").setValue(youMeID);
+        }
 
         if (imageControl) {
+            // Update the image only if the user has selected a new one
             try {
-                // 1. convert imageUri into Bitmap
                 BitmapFactory.Options options = new BitmapFactory.Options();
                 options.inSampleSize = 4; // compress rate
                 Bitmap bitmap = BitmapFactory.decodeStream(getContentResolver().openInputStream(imageUri), null, options);
 
-                // 2. convert Bitmap into byte array
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 50, baos);
                 byte[] imageData = baos.toByteArray();
 
-                // 3. upload the compressed image
                 UUID randomID = UUID.randomUUID();
                 String imageName = "images/" + randomID + ".jpg";
                 StorageReference imageRef = storageReference.child(imageName);
@@ -188,31 +207,31 @@ public class ProfileActivity extends AppCompatActivity {
                 imageRef.putBytes(imageData).addOnSuccessListener(taskSnapshot -> {
                     imageRef.getDownloadUrl().addOnSuccessListener(uri -> {
                         String filePath = uri.toString();
-                        reference.child("Users").child(auth.getUid()).child("image").setValue(filePath)
+                        reference.child("Users").child(firebaseUser.getUid()).child("image").setValue(filePath)
                                 .addOnSuccessListener(unused -> {
-                                    Toast.makeText(this, "Profile updated successfully.", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(ProfileActivity.this, "Profile updated successfully.", Toast.LENGTH_SHORT).show();
                                     navigateToMainActivity(userName);
                                 })
                                 .addOnFailureListener(e -> {
-                                    Toast.makeText(this, "Failed to update profile.", Toast.LENGTH_SHORT).show();
-                                    buttonUpdate.setEnabled(true); // re enable the btn
+                                    Toast.makeText(ProfileActivity.this, "Failed to update profile.", Toast.LENGTH_SHORT).show();
+                                    buttonUpdate.setEnabled(true);
                                 });
                     });
                 }).addOnFailureListener(e -> {
-                    Toast.makeText(this, "Image upload failed.", Toast.LENGTH_SHORT).show();
-                    buttonUpdate.setEnabled(true); // re enable the btn
+                    Toast.makeText(ProfileActivity.this, "Image upload failed.", Toast.LENGTH_SHORT).show();
+                    buttonUpdate.setEnabled(true);
                 });
-
             } catch (Exception e) {
                 e.printStackTrace();
                 Toast.makeText(this, "Error processing image.", Toast.LENGTH_SHORT).show();
-                buttonUpdate.setEnabled(true); // re enable the btn
+                buttonUpdate.setEnabled(true);
             }
         } else {
-            reference.child("Users").child(auth.getUid()).child("image").setValue("null")
-                    .addOnCompleteListener(task -> navigateToMainActivity(userName));
+            // Do not update the image if no new image was selected
+            navigateToMainActivity(userName);
         }
     }
+
 
     private void navigateToMainActivity(String userName) {
         Intent intent = new Intent(this, MainActivity.class);
@@ -228,4 +247,3 @@ public class ProfileActivity extends AppCompatActivity {
         imageChooserLauncher.launch(intent);
     }
 }
-
