@@ -7,6 +7,11 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_addFriend"
+        android:title="Add Friend"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_signout"
         android:title="@string/sign_out"
         app:showAsAction="never" />
