@@ -152,6 +152,8 @@ public class MainActivity extends AppCompatActivity {
             startActivity(new Intent(this, LoginActivity.class));
             finish();
             return true;
+        } else if (item.getItemId() == R.id.action_addFriend) {
+            startActivity(new Intent(this,AddFriendActivity.class));
         }
 
         return super.onOptionsItemSelected(item);
