@@ -95,19 +95,19 @@ public class MainActivity extends AppCompatActivity {
         reference.child("Users").addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                User user = snapshot.getValue(User.class);
+                User newUser = snapshot.getValue(User.class);
 
-                if (user != null) {
+                if (newUser != null) {
                     // Use Firebase unique key as user ID
-                    user.setId(snapshot.getKey());
+                    newUser.setId(snapshot.getKey());
 
                     // Get the image URL from the snapshot and set it to the User object
                     String imageUrl = snapshot.child("image").getValue(String.class);
-                    user.setImage(imageUrl);  // Set the image URL to the User object
+                    newUser.setImage(imageUrl);
 
                     // Avoid adding the current user to the friend list
-                    if (user.getId() != null && !user.getId().equals(auth.getCurrentUser().getUid())) {
-                        friendList.add(user);
+                    if (!newUser.getId().equals(user.getUid())) {
+                        friendList.add(newUser);
                         contactAdapter.notifyDataSetChanged();  // Notify adapter to refresh RecyclerView
                     }
                 }
@@ -130,7 +130,6 @@ public class MainActivity extends AppCompatActivity {
             public void onCancelled(@NonNull DatabaseError error) { }
         });
     }
-
 
     // Inflate the menu for profile and logout options
     @Override

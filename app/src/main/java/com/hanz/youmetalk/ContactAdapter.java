@@ -41,23 +41,23 @@ public class ContactAdapter extends RecyclerView.Adapter<ContactAdapter.ViewHold
         String imageUrl = user.getImage();
 
         if (imageUrl != null && !imageUrl.isEmpty()) {
-            // 使用 Glide 加载头像，添加占位符和错误处理
             GlideApp.with(context)
-                    .load(imageUrl)  // 从 User 对象获取图片链接
+                    .load(imageUrl)  // get url from user
                     .apply(new RequestOptions()
-                            .placeholder(R.drawable.profile_placeholder)  // 加载中时的占位符
-                            .error(R.drawable.profile_error))  // 加载失败时的占位符
+                            .placeholder(R.drawable.profile_placeholder)
+                            .error(R.drawable.profile_error))
                     .into(holder.profileImage);
         } else {
-            // 如果 imageUrl 为空，设置占位符
+            // set place holder if image url is null
             holder.profileImage.setImageResource(R.drawable.profile_placeholder);
         }
 
-        // 点击用户卡片，启动 MyTalkActivity
+        // start MyTalkActivity if user click the card
         holder.itemView.setOnClickListener(view -> {
             Intent intent = new Intent(context, MyTalkActivity.class);
-            intent.putExtra("userName", "CurrentUserName"); // 当前登录用户的用户名
-            intent.putExtra("friendName", user.getUserName()); // 点击的好友名称
+            intent.putExtra("userName", "CurrentUserName");
+            intent.putExtra("friendName", user.getUserName());
+            intent.putExtra("friendId", user.getId());
             context.startActivity(intent);
         });
     }
