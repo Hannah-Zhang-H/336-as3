@@ -135,13 +135,13 @@ public class ProfileActivity extends AppCompatActivity {
                         editTextUserNameUpdate.setText(name);
                     }
 
-                    // 确保Activity未被销毁后再使用Glide加载图片
+                    // ensure the activity is not destroyed
                     if (image != null && !image.equals("null") && !isDestroyed() && !isFinishing()) {
                         Glide.with(ProfileActivity.this)
                                 .load(image)
                                 .placeholder(R.drawable.account)
                                 .error(R.drawable.account)
-                                .diskCacheStrategy(DiskCacheStrategy.ALL) // 使用 Glide 的全缓存策略
+                                .diskCacheStrategy(DiskCacheStrategy.ALL)
                                 .into(imageViewProfile);
                     } else {
                         imageViewProfile.setImageResource(R.drawable.account);
@@ -165,22 +165,22 @@ public class ProfileActivity extends AppCompatActivity {
             return;
         }
 
-        buttonUpdate.setEnabled(false); // 禁用按钮以防止重复上传
+        buttonUpdate.setEnabled(false); // disable the button
         reference.child("Users").child(firebaseUser.getUid()).child("userName").setValue(userName);
 
         if (imageControl) {
             try {
-                // 1. 将 imageUri 转换为 Bitmap
+                // 1. convert imageUri into Bitmap
                 BitmapFactory.Options options = new BitmapFactory.Options();
-                options.inSampleSize = 4; // 压缩比例
+                options.inSampleSize = 4; // compress rate
                 Bitmap bitmap = BitmapFactory.decodeStream(getContentResolver().openInputStream(imageUri), null, options);
 
-                // 2. 将 Bitmap 转换为字节数组
+                // 2. convert Bitmap into byte array
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 50, baos);
                 byte[] imageData = baos.toByteArray();
 
-                // 3. 上传压缩后的图片
+                // 3. upload the compressed image
                 UUID randomID = UUID.randomUUID();
                 String imageName = "images/" + randomID + ".jpg";
                 StorageReference imageRef = storageReference.child(imageName);
@@ -195,18 +195,18 @@ public class ProfileActivity extends AppCompatActivity {
                                 })
                                 .addOnFailureListener(e -> {
                                     Toast.makeText(this, "Failed to update profile.", Toast.LENGTH_SHORT).show();
-                                    buttonUpdate.setEnabled(true); // 重新启用按钮
+                                    buttonUpdate.setEnabled(true); // re enable the btn
                                 });
                     });
                 }).addOnFailureListener(e -> {
                     Toast.makeText(this, "Image upload failed.", Toast.LENGTH_SHORT).show();
-                    buttonUpdate.setEnabled(true); // 重新启用按钮
+                    buttonUpdate.setEnabled(true); // re enable the btn
                 });
 
             } catch (Exception e) {
                 e.printStackTrace();
                 Toast.makeText(this, "Error processing image.", Toast.LENGTH_SHORT).show();
-                buttonUpdate.setEnabled(true); // 重新启用按钮
+                buttonUpdate.setEnabled(true); // re enable the btn
             }
         } else {
             reference.child("Users").child(auth.getUid()).child("image").setValue("null")

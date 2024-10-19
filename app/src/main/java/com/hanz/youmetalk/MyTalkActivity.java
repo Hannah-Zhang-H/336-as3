@@ -1,25 +1,20 @@
 package com.hanz.youmetalk;
 
-import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -28,6 +23,7 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ServerValue;
 import com.google.firebase.database.ValueEventListener;
 import com.hanz.youmetalk.databinding.ActivityMyTalkBinding;
 
@@ -36,7 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class MyTalkActivity extends AppCompatActivity {
+public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.OnMessageLongClickListener {
 
     private ActivityMyTalkBinding myTalkLayout;
     private RecyclerView recyclerViewMessageArea;
@@ -45,24 +41,30 @@ public class MyTalkActivity extends AppCompatActivity {
     private EditText editTextMessage;
     private FloatingActionButton fab;
 
-    String userName, friendName;
+    private String currentUserId, friendId, friendName;
+    private String conversationId;
 
-    FirebaseDatabase database;
-    FirebaseUser firebaseUser;  // FirebaseUser 对象
-    DatabaseReference reference;
+    private FirebaseDatabase database;
+    private DatabaseReference reference;
+    private FirebaseUser firebaseUser;
 
-    MessageAdapter messageAdapter;
-    List<Model> list;
+    private MessageAdapter messageAdapter;
+    private List<Model> list;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         myTalkLayout = ActivityMyTalkBinding.inflate(getLayoutInflater());
         setContentView(myTalkLayout.getRoot());
 
-        // 初始化 FirebaseUser 对象
+        // Initialize FirebaseUser
         firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (firebaseUser == null) {
+            Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        currentUserId = firebaseUser.getUid();
 
         recyclerViewMessageArea = myTalkLayout.recyclerViewTalkArea;
         recyclerViewMessageArea.setLayoutManager(new LinearLayoutManager(this));
@@ -73,99 +75,160 @@ public class MyTalkActivity extends AppCompatActivity {
         editTextMessage = myTalkLayout.editTextMessage;
         fab = myTalkLayout.fab;
 
-        userName = getIntent().getStringExtra("userName");
+        friendId = getIntent().getStringExtra("friendId");
         friendName = getIntent().getStringExtra("friendName");
+
+        if (friendId == null || friendName == null) {
+            Toast.makeText(this, "Friend data missing", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
 
         database = FirebaseDatabase.getInstance();
         reference = database.getReference();
 
         textViewChatFriendName.setText(friendName);
 
+        messageAdapter = new MessageAdapter(list, currentUserId, this); // pass the listener
+        recyclerViewMessageArea.setAdapter(messageAdapter);
+
         imageViewBack.setOnClickListener(view -> {
             startActivity(new Intent(this, MainActivity.class));
         });
 
         fab.setOnClickListener(view -> {
-            String message = editTextMessage.getText().toString();
+            String message = editTextMessage.getText().toString().trim();
             if (!message.isEmpty()) {
                 sendMessage(message);
                 editTextMessage.setText("");
             }
         });
 
-        getMessage();
+        conversationId = getConversationId(currentUserId, friendId);
+
+        loadMessages();
     }
 
-    // 获取当前登录用户的头像
-    private void getUser(Model model) {
-        if (firebaseUser != null) {  // 确保 firebaseUser 不为空
-            String currentUserId = firebaseUser.getUid();
+    private String getConversationId(String userId1, String userId2) {
+        return userId1.compareTo(userId2) > 0 ? userId1 + "_" + userId2 : userId2 + "_" + userId1;
+    }
 
-            reference.child("Users").child(currentUserId).addListenerForSingleValueEvent(new ValueEventListener() {
-                @Override
-                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                    if (dataSnapshot.exists()) {
-                        // 获取当前登录用户的头像 URL
-                        String imageUrl = dataSnapshot.child("image").getValue(String.class);
-                        model.setImage(imageUrl);  // 将图片 URL 设置到 Model 对象中
-                        Log.d("UserImage", "User Image URL: " + imageUrl);
-                    } else {
-                        Log.d("UserImage", "User not found for ID: " + currentUserId);
+    private void loadMessages() {
+        messageAdapter = new MessageAdapter(list, currentUserId, this);
+        recyclerViewMessageArea.setAdapter(messageAdapter);
+
+        reference.child("Messages").child(conversationId).child("messages")
+                .addChildEventListener(new ChildEventListener() {
+                    @Override
+                    public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                        Model model = snapshot.getValue(Model.class);
+                        if (model != null) {
+                            // check if the message is soft deleted
+                            if (model.getDeleted_for() == null || !model.getDeleted_for().contains(currentUserId)) {
+                                model.setMessageId(snapshot.getKey()); // set message id
+                                list.add(model);
+                                messageAdapter.notifyDataSetChanged();
+                                recyclerViewMessageArea.scrollToPosition(list.size() - 1);
+                            }
+                        }
                     }
 
-                    // 添加消息到列表并更新 RecyclerView
-                    list.add(model);
-                    messageAdapter.notifyDataSetChanged();
-                    recyclerViewMessageArea.scrollToPosition(list.size() - 1);
-                }
+                    @Override
+                    public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {}
 
-                @Override
-                public void onCancelled(@NonNull DatabaseError databaseError) {
-                    Log.e("Firebase", "Error loading user data", databaseError.toException());
-                }
-            });
-        } else {
-            Log.e("Firebase", "FirebaseUser is null");
+                    @Override
+                    public void onChildRemoved(@NonNull DataSnapshot snapshot) {}
+
+                    @Override
+                    public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {}
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        Log.e("Firebase", "Error loading messages", error.toException());
+                    }
+                });
+    }
+
+    private void sendMessage(String message) {
+        String key = reference.child("Messages").child(conversationId).child("messages").push().getKey();
+        if (key != null) {
+            Map<String, Object> messageMap = new HashMap<>();
+            messageMap.put("message", message);
+            messageMap.put("from", currentUserId);
+            messageMap.put("to", friendId);
+            messageMap.put("timestamp", ServerValue.TIMESTAMP);
+
+            reference.child("Messages").child(conversationId).child("messages").child(key)
+                    .setValue(messageMap).addOnCompleteListener(task -> {
+                        if (task.isSuccessful()) {
+                            Log.d("MessageStatus", "Message sent successfully");
+                        } else {
+                            Log.e("MessageStatus", "Failed to send message");
+                        }
+                    });
         }
     }
 
-    private void getMessage() {
-        reference.child("Messages").child(userName).child(friendName).addChildEventListener(new ChildEventListener() {
+    @Override
+    public void onMessageLongClick(String messageId, View anchorView) {
+        showCustomDialog(messageId);
+    }
+
+    private void showCustomDialog(String messageId) {
+        String[] options = {"Delete"};
+
+        int[] icons = {R.drawable.ic_delete}; // delete icon
+
+        // instantiate IconTextAdapter
+        IconTextAdapter adapter = new IconTextAdapter(this, options, icons);
+
+        // create the dialog
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setAdapter(adapter, (dialog, which) -> {
+            if (which == 0) { // if user click delete
+                deleteMessage(messageId);
+            }
+        });
+        builder.setTitle("Select an action");
+        AlertDialog dialog = builder.create();
+        dialog.show();
+    }
+
+    private void deleteMessage(String messageId) {
+        reference.child("Messages").child(conversationId).child("messages").child(messageId).addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
-            public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                Model model = snapshot.getValue(Model.class);
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                Model model = dataSnapshot.getValue(Model.class);
+
                 if (model != null) {
-                    // 调用 GetUser() 函数，获取当前登录用户的头像
-                    getUser(model);
+                    List<String> deletedFor = model.getDeleted_for() != null ? model.getDeleted_for() : new ArrayList<>();
+
+                    if (!deletedFor.contains(currentUserId)) {
+                        deletedFor.add(currentUserId); // add currentUser to soft delete list
+                    }
+
+                    // update database
+                    reference.child("Messages").child(conversationId).child("messages").child(messageId).child("deleted_for").setValue(deletedFor)
+                            .addOnCompleteListener(task -> {
+                                if (task.isSuccessful()) {
+                                    // delete the message and update the view
+                                    for (int i = 0; i < list.size(); i++) {
+                                        if (list.get(i).getMessageId().equals(messageId)) {
+                                            list.remove(i); // remove the message
+                                            messageAdapter.notifyItemRemoved(i); // update recyclerview
+                                            break;
+                                        }
+                                    }
+                                } else {
+                                    Toast.makeText(MyTalkActivity.this, "Error deleting message", Toast.LENGTH_SHORT).show();
+                                }
+                            });
                 }
             }
 
             @Override
-            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {}
-
-            @Override
-            public void onChildRemoved(@NonNull DataSnapshot snapshot) {}
-
-            @Override
-            public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {}
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {}
-        });
-
-        messageAdapter = new MessageAdapter(list, userName);
-        recyclerViewMessageArea.setAdapter(messageAdapter);
-    }
-
-    private void sendMessage(String message) {
-        String key = reference.child("Messages").child(userName).child(friendName).push().getKey();
-        Map<String, Object> messageMap = new HashMap<>();
-        messageMap.put("message", message);
-        messageMap.put("from", userName);
-
-        reference.child("Messages").child(userName).child(friendName).child(key).setValue(messageMap).addOnCompleteListener(task -> {
-            if (task.isSuccessful()) {
-                reference.child("Messages").child(friendName).child(userName).child(key).setValue(messageMap);
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                Log.e("Firebase", "Error deleting message", databaseError.toException());
             }
         });
     }

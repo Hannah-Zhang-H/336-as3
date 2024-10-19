@@ -2,6 +2,7 @@ package com.hanz.youmetalk;
 
 import android.content.Context;
 import android.content.Intent;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -24,17 +25,17 @@ import de.hdodenhof.circleimageview.CircleImageView;
 
 public class UsersAdapter extends RecyclerView.Adapter<UsersAdapter.ViewHolder> {
 
-    List<String> userList;
+    List<User> userList;
     Context context;
-    String userName;
+    String currentUserName;
 
     DatabaseReference reference;
     FirebaseDatabase database;
 
-    public UsersAdapter(Context context, List<String> userList, String userName) {
+    public UsersAdapter(Context context, List<User> userList, String currentUserName) {
         this.context = context;
         this.userList = userList;
-        this.userName = userName;
+        this.currentUserName = currentUserName;
 
         database = FirebaseDatabase.getInstance();
         reference = database.getReference();
@@ -49,32 +50,39 @@ public class UsersAdapter extends RecyclerView.Adapter<UsersAdapter.ViewHolder> 
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        reference.child("Users").child(userList.get(position)).addValueEventListener(new ValueEventListener() {
+        User user = userList.get(position);
+        String friendId = user.getId();
+        // fetch user data
+        reference.child("Users").child(friendId).addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                String friendName = snapshot.child("userName").getValue().toString();
-                String imageURL = snapshot.child("image").getValue().toString();
 
-                holder.textViewUser.setText(friendName);
+                String friendName = snapshot.child("userName").getValue(String.class);
+                String imageURL = snapshot.child("image").getValue(String.class);
 
-                if(imageURL.equals("null"))
-                {
+                // set username
+                holder.textViewUser.setText(friendName != null ? friendName : "Unknown");
+
+                // set user profile image
+                if (imageURL != null && imageURL.equals("null")) {
                     holder.imageViewUser.setImageResource(R.drawable.account);
+                } else if (imageURL != null) {
+                    Picasso.get().load(imageURL).into(holder.imageViewUser);
                 }
-                else Picasso.get().load(imageURL).into(holder.imageViewUser);
 
+                //pass friendId and friendName to MyTalkActivity
                 holder.cardView.setOnClickListener(view -> {
                     Intent intent = new Intent(context, MyTalkActivity.class);
-                    intent.putExtra("userName", userName);
-                    intent.putExtra("friendName", friendName);
+                    intent.putExtra("userName", currentUserName);
+                    intent.putExtra("friendId", friendId);
+                    intent.putExtra("friendName", friendName != null ? friendName : "Unknown");
                     context.startActivity(intent);
-
                 });
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-
+                // 处理取消的情况
             }
         });
     }
@@ -84,7 +92,6 @@ public class UsersAdapter extends RecyclerView.Adapter<UsersAdapter.ViewHolder> 
         return userList.size();
     }
 
-
     public class ViewHolder extends RecyclerView.ViewHolder {
         private TextView textViewUser;
         private CircleImageView imageViewUser;
@@ -92,7 +99,6 @@ public class UsersAdapter extends RecyclerView.Adapter<UsersAdapter.ViewHolder> 
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
-
 
             textViewUser = itemView.findViewById(R.id.textViewUser);
             imageViewUser = itemView.findViewById(R.id.imageViewUser);

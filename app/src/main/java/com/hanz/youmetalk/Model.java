@@ -1,14 +1,19 @@
 package com.hanz.youmetalk;
 
+import java.util.List;
+
 public class Model {
     private String message;
     private String from;
-    private String image;  // 确保有这个字段
+    private String image;
+    private List<String> deleted_for;
+    private long timestamp;
+    private String messageId;
 
     public Model() {}
 
     public String getMessage() {
-        return message;
+        return message != null ? message : "";
     }
 
     public void setMessage(String message) {
@@ -16,7 +21,7 @@ public class Model {
     }
 
     public String getFrom() {
-        return from;
+        return from != null ? from : "";
     }
 
     public void setFrom(String from) {
@@ -24,10 +29,34 @@ public class Model {
     }
 
     public String getImage() {
-        return image;  // 确保 getImage 正常返回 URL
+        return image != null ? image : "";
     }
 
     public void setImage(String image) {
         this.image = image;
+    }
+
+    public List<String> getDeleted_for() {
+        return deleted_for;
+    }
+
+    public void setDeleted_for(List<String> deleted_for) {
+        this.deleted_for = deleted_for;
+    }
+
+    public long getTimestamp() {
+        return timestamp;
+    }
+
+    public void setTimestamp(long timestamp) {
+        this.timestamp = timestamp;
+    }
+
+    public String getMessageId() {
+        return messageId != null ? messageId : "";
+    }
+
+    public void setMessageId(String messageId) {
+        this.messageId = messageId;
     }
 }

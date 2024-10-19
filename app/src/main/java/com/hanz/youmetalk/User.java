@@ -8,7 +8,7 @@ public class User {
     private String image;
 
     public User() {
-        // 空构造函数，Firebase 使用
+        // empty constructor for firebase
     }
 
     public User(String id, String userName, String profileImage) {

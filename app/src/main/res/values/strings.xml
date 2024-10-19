@@ -11,4 +11,5 @@
     <string name="profile">Profile</string>
     <string name="sign_out">Sign Out</string>
     <string name="sendmessage">SendMessage</string>
+    <string name="delete">Delete</string>
 </resources>

@@ -5,8 +5,8 @@
     android:layout_height="wrap_content"
     android:padding="8dp">
 
-    <!-- ImageView for the sender's profile picture -->
-    <ImageView
+    <!-- CircleImageView for the sender's profile picture -->
+    <de.hdodenhof.circleimageview.CircleImageView
         android:id="@+id/imageViewReceived"
         android:layout_width="40dp"
         android:layout_height="40dp"

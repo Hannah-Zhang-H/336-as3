@@ -9,7 +9,6 @@ import android.widget.Toast;
 import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -24,6 +23,8 @@ import com.google.firebase.storage.StorageReference;
 import com.hanz.youmetalk.databinding.ActivitySignUpBinding;
 import com.squareup.picasso.Picasso;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import de.hdodenhof.circleimageview.CircleImageView;
@@ -41,15 +42,11 @@ public class SignUpActivity extends AppCompatActivity {
     FirebaseDatabase database;
     DatabaseReference reference;
 
-
     FirebaseStorage firebaseStorage;
     StorageReference storageReference;
 
     private ActivityResultLauncher<Intent> imageChooserLauncher;
-
-
     Uri imageUri;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,7 +62,6 @@ public class SignUpActivity extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
-
 
         // Init ActivityResultLauncher
         imageChooserLauncher = registerForActivityResult(
@@ -83,7 +79,6 @@ public class SignUpActivity extends AppCompatActivity {
                     }
                 });
 
-
         // Assign values
         imageViewCircle = signUpLayout.imageViewCircle;
         editTextEmailSignup = signUpLayout.editTextEmailSignup;
@@ -98,9 +93,7 @@ public class SignUpActivity extends AppCompatActivity {
         firebaseStorage = FirebaseStorage.getInstance();
         storageReference = firebaseStorage.getReference();
 
-        imageViewCircle.setOnClickListener(view -> {
-            imageChooser();
-        });
+        imageViewCircle.setOnClickListener(view -> imageChooser());
 
         buttonRegister.setOnClickListener(view -> {
             String email = editTextEmailSignup.getText().toString();
@@ -115,45 +108,51 @@ public class SignUpActivity extends AppCompatActivity {
                 signup(email, password, userName);
             }
         });
-
     }
 
     private void signup(String email, String password, String userName) {
         auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener(task -> {
-            if(task.isSuccessful())
-            {
-                reference.child("Users").child(auth.getUid()).child("userName").setValue(userName);
+            if (task.isSuccessful()) {
+                String uid = auth.getUid();
+                Map<String, Object> userMap = new HashMap<>();
+                userMap.put("userName", userName);
 
-                if(imageControl)
-                {
+                if (imageControl) {
                     UUID randomID = UUID.randomUUID();
                     String imageName = "images/" + randomID + ".jpg";
                     storageReference.child(imageName).putFile(imageUri).addOnSuccessListener(taskSnapshot -> {
-                        StorageReference myStorageRef = firebaseStorage.getReference(imageName);
-                        myStorageRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                           String filePath = uri.toString();
-                            reference.child("Users").child(auth.getUid()).child("image").setValue(filePath).addOnSuccessListener(unused -> {
-                                Toast.makeText(this, "Successfully stored to database.", Toast.LENGTH_SHORT).show();
+                        storageReference.child(imageName).getDownloadUrl().addOnSuccessListener(uri -> {
+                            String filePath = uri.toString();
+                            userMap.put("image", filePath);
+                            // update the user data in the database
+                            reference.child("Users").child(uid).setValue(userMap).addOnSuccessListener(unused -> {
+                                Toast.makeText(SignUpActivity.this, "Successfully stored to database.", Toast.LENGTH_SHORT).show();
+                                navigateToMain();
                             }).addOnFailureListener(e -> {
-                                Toast.makeText(this, "Failed to store to database.", Toast.LENGTH_SHORT).show();
-
+                                Toast.makeText(SignUpActivity.this, "Failed to store to database.", Toast.LENGTH_SHORT).show();
                             });
-
                         });
                     });
-                }
-                else {
-                    reference.child("Users").child(auth.getUid()).child("image").setValue("null");
+                } else {
+                    userMap.put("image", "null");
+                    reference.child("Users").child(uid).setValue(userMap).addOnSuccessListener(unused -> {
+                        Toast.makeText(SignUpActivity.this, "Successfully stored to database.", Toast.LENGTH_SHORT).show();
+                        navigateToMain();
+                    }).addOnFailureListener(e -> {
+                        Toast.makeText(SignUpActivity.this, "Failed to store to database.", Toast.LENGTH_SHORT).show();
+                    });
                 }
 
-                Intent intent = new Intent(this, MainActivity.class);
-//                intent.putExtra("userName", userName);
-                startActivity(intent);
-                finish();
+            } else {
+                Toast.makeText(SignUpActivity.this, "Sign-up failed. Please try again.", Toast.LENGTH_SHORT).show();
             }
-            else Toast.makeText(this, "Invalid input???.", Toast.LENGTH_SHORT).show();
-
         });
+    }
+
+    private void navigateToMain() {
+        Intent intent = new Intent(SignUpActivity.this, MainActivity.class);
+        startActivity(intent);
+        finish();
     }
 
     public void imageChooser() {
@@ -162,8 +161,4 @@ public class SignUpActivity extends AppCompatActivity {
         intent.setAction(Intent.ACTION_GET_CONTENT);
         imageChooserLauncher.launch(intent);
     }
-
-
-
-
 }
