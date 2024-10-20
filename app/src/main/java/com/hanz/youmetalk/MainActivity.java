@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
-import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -62,8 +61,8 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
         // Initialize lists and adapters
         friendList = new ArrayList<>();
         friendRequestList = new ArrayList<>();
-        contactAdapter = new ContactAdapter(this, friendList, 0, this);
-        friendRequestAdapter = new FriendRequestAdapter(this, friendRequestList);
+        contactAdapter = new ContactAdapter(this, friendList, 0, this);  // Initialize contact adapter with no friend requests
+        friendRequestAdapter = new FriendRequestAdapter(this, friendRequestList);  // Initialize friend request adapter
 
         // Set BottomNavigationView click listener
         BottomNavigationView bottomNavigationView = mainLayout.bottomNavigation;
@@ -83,6 +82,9 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
 
             return false;
         });
+
+        // Initially load contacts and friend requests
+        loadFriendRequestsAndContacts();
     }
 
     // Load both contacts and friend requests
@@ -91,37 +93,28 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
         loadContactData();  // Load contact data
     }
 
-    // Load the contact data (friends) from Firebase
+    // Load the contact data from Firebase
     private void loadContactData() {
-        friendList.clear();  // Clear the existing friend list
+        friendList.clear();
 
         String currentUserId = auth.getCurrentUser().getUid();
-        // Reference to the current user's Friends node
         DatabaseReference friendsRef = reference.child("Users").child(currentUserId).child("Friends");
 
-        // Get the list of friend UIDs from the Friends node
         friendsRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 for (DataSnapshot friendSnapshot : snapshot.getChildren()) {
-                    // Get each friend's UID
                     String friendUid = friendSnapshot.getKey();
 
-                    // Fetch the friend's details from the Users node using the UID
-                    DatabaseReference userRef = reference.child("Users").child(friendUid);
-                    userRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                    reference.child("Users").child(friendUid).addListenerForSingleValueEvent(new ValueEventListener() {
                         @Override
                         public void onDataChange(@NonNull DataSnapshot userSnapshot) {
                             User friend = userSnapshot.getValue(User.class);
                             if (friend != null) {
-                                // Set the friend's UID
                                 friend.setId(userSnapshot.getKey());
-
-                                // Set the friend's image URL if available
                                 String imageUrl = userSnapshot.child("image").getValue(String.class);
                                 friend.setImage(imageUrl);
 
-                                // Add the friend to the list and update the adapter
                                 friendList.add(friend);
                                 contactAdapter.notifyDataSetChanged();
                             }
@@ -129,7 +122,7 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
 
                         @Override
                         public void onCancelled(@NonNull DatabaseError error) {
-                            // Handle potential errors here
+                            // Handle error
                         }
                     });
                 }
@@ -137,7 +130,7 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                // Handle potential errors here
+                // Handle error
             }
         });
     }
@@ -150,8 +143,8 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
         requestRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                friendRequestList.clear();  // Clear the existing list
-                int waitingRequestCount = 0;  // count the waiting status friend request
+                friendRequestList.clear();
+                int waitingRequestCount = 0;
 
                 for (DataSnapshot requestSnapshot : snapshot.getChildren()) {
                     FriendRequest friendRequest = requestSnapshot.getValue(FriendRequest.class);
@@ -162,13 +155,16 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
                     }
                 }
 
+                // Update contact adapter with new waiting request count
                 contactAdapter = new ContactAdapter(MainActivity.this, friendList, waitingRequestCount, MainActivity.this);
                 recyclerView.setAdapter(contactAdapter);
                 contactAdapter.notifyDataSetChanged();
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) { }
+            public void onCancelled(@NonNull DatabaseError error) {
+                // Handle error
+            }
         });
     }
 
@@ -188,7 +184,7 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
                 friendRequestList.clear();
                 for (DataSnapshot requestSnapshot : snapshot.getChildren()) {
                     FriendRequest friendRequest = requestSnapshot.getValue(FriendRequest.class);
-                    if (friendRequest != null) {
+                    if (friendRequest != null && "waiting".equals(friendRequest.getStatus())) {  // Only load "waiting" requests
                         friendRequest.setRequestId(requestSnapshot.getKey());
                         friendRequestList.add(friendRequest);
                     }
