@@ -16,65 +16,119 @@ import com.bumptech.glide.request.RequestOptions;
 
 import java.util.List;
 
-public class ContactAdapter extends RecyclerView.Adapter<ContactAdapter.ViewHolder> {
+public class ContactAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+
+    private static final int VIEW_TYPE_SUMMARY = 0;
+    private static final int VIEW_TYPE_CONTACT = 1;
 
     private Context context;
-    private List<User> userList;
+    private List<User> friendList;
+    private int waitingFriendRequestCount;
+    private OnFriendRequestCardClickListener onFriendRequestCardClickListener;
 
-    public ContactAdapter(Context context, List<User> userList) {
+    public interface OnFriendRequestCardClickListener {
+        void onFriendRequestCardClick();
+    }
+
+    public ContactAdapter(Context context, List<User> friendList, int waitingFriendRequestCount, OnFriendRequestCardClickListener listener) {
         this.context = context;
-        this.userList = userList;
+        this.friendList = friendList;
+        this.waitingFriendRequestCount = waitingFriendRequestCount;
+        this.onFriendRequestCardClickListener = listener;
+    }
+
+    @Override
+    public int getItemViewType(int position) {
+        // show the summary of the friend request at the index 0
+        if (position == 0 && waitingFriendRequestCount > 0) {
+            return VIEW_TYPE_SUMMARY;
+        } else {
+            return VIEW_TYPE_CONTACT;
+        }
     }
 
     @NonNull
     @Override
-    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(context).inflate(R.layout.user_card, parent, false);
-        return new ViewHolder(view);
+    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        if (viewType == VIEW_TYPE_SUMMARY) {
+            View view = LayoutInflater.from(context).inflate(R.layout.item_summary, parent, false);
+            return new SummaryViewHolder(view, onFriendRequestCardClickListener);
+        } else {
+            View view = LayoutInflater.from(context).inflate(R.layout.user_card, parent, false);
+            return new ContactViewHolder(view);
+        }
     }
 
     @Override
-    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        User user = userList.get(position);
-        holder.userName.setText(user.getUserName());
-
-        String imageUrl = user.getImage();
-
-        if (imageUrl != null && !imageUrl.isEmpty()) {
-            GlideApp.with(context)
-                    .load(imageUrl)  // get url from user
-                    .apply(new RequestOptions()
-                            .placeholder(R.drawable.profile_placeholder)
-                            .error(R.drawable.profile_error))
-                    .into(holder.profileImage);
+    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+        if (holder.getItemViewType() == VIEW_TYPE_SUMMARY) {
+            ((SummaryViewHolder) holder).bind(waitingFriendRequestCount);
         } else {
-            // set place holder if image url is null
-            holder.profileImage.setImageResource(R.drawable.profile_placeholder);
+            int actualPosition = waitingFriendRequestCount > 0 ? position - 1 : position;
+            User friend = friendList.get(actualPosition);
+            ((ContactViewHolder) holder).bind(friend);
         }
-
-        // start MyTalkActivity if user click the card
-        holder.itemView.setOnClickListener(view -> {
-            Intent intent = new Intent(context, MyTalkActivity.class);
-            intent.putExtra("userName", "CurrentUserName");
-            intent.putExtra("friendName", user.getUserName());
-            intent.putExtra("friendId", user.getId());
-            context.startActivity(intent);
-        });
     }
 
     @Override
     public int getItemCount() {
-        return userList.size();
+        // check if any add friend request, if no, only show the friend list
+        return waitingFriendRequestCount > 0 ? friendList.size() + 1 : friendList.size();
     }
 
-    public static class ViewHolder extends RecyclerView.ViewHolder {
+    // ViewHolder for the summary card
+    public static class SummaryViewHolder extends RecyclerView.ViewHolder {
+        TextView textFriendRequestSummary;
+
+        public SummaryViewHolder(@NonNull View itemView, OnFriendRequestCardClickListener listener) {
+            super(itemView);
+            textFriendRequestSummary = itemView.findViewById(R.id.textFriendRequestSummary);
+
+            itemView.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onFriendRequestCardClick();  // notify MainActivity switch back to friendRequest
+                }
+            });
+        }
+
+        public void bind(int friendRequestCount) {
+            textFriendRequestSummary.setText("You have " + friendRequestCount + " friend requests");
+        }
+    }
+
+    // ViewHolder for the contact items
+    public static class ContactViewHolder extends RecyclerView.ViewHolder {
         public TextView userName;
         public ImageView profileImage;
 
-        public ViewHolder(@NonNull View itemView) {
+        public ContactViewHolder(@NonNull View itemView) {
             super(itemView);
             userName = itemView.findViewById(R.id.textViewUser);
             profileImage = itemView.findViewById(R.id.imageViewUser);
+        }
+
+        public void bind(User friend) {
+            userName.setText(friend.getUserName());
+            String imageUrl = friend.getImage();
+            if (imageUrl != null && !imageUrl.isEmpty()) {
+                Glide.with(itemView.getContext())
+                        .load(imageUrl)
+                        .apply(new RequestOptions()
+                                .placeholder(R.drawable.profile_placeholder)
+                                .error(R.drawable.profile_error))
+                        .into(profileImage);
+            } else {
+                profileImage.setImageResource(R.drawable.profile_placeholder);
+            }
+
+            // jump to chat activity
+            itemView.setOnClickListener(view -> {
+                Intent intent = new Intent(itemView.getContext(), MyTalkActivity.class);
+                intent.putExtra("userName", friend.getUserName());
+                intent.putExtra("friendName", friend.getUserName());
+                intent.putExtra("friendId", friend.getId());
+                itemView.getContext().startActivity(intent);
+            });
         }
     }
 }

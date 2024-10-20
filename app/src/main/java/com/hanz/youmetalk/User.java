@@ -6,6 +6,7 @@ public class User {
     private String id;
     private String userName;
     private String image;
+    private String youMeId;
 
     public User() {
         // empty constructor for firebase
@@ -40,5 +41,13 @@ public class User {
 
     public void setImage(String image) {
         this.image = image;
+    }
+
+    public String getYouMeId() {
+        return youMeId;
+    }
+
+    public void setYouMeId(String youMeId) {
+        this.youMeId = youMeId;
     }
 }
