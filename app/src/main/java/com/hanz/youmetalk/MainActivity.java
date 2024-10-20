@@ -5,7 +5,9 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.View;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -17,13 +19,12 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.annotations.Nullable;
+import com.google.firebase.database.ValueEventListener;
 import com.hanz.youmetalk.databinding.ActivityMainBinding;
-
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements ContactAdapter.OnFriendRequestCardClickListener {
 
     FirebaseAuth auth;
     RecyclerView recyclerView;
@@ -31,9 +32,10 @@ public class MainActivity extends AppCompatActivity {
     DatabaseReference reference;
     FirebaseDatabase database;
 
-    String userName;
     List<User> friendList;
+    List<FriendRequest> friendRequestList;
     ContactAdapter contactAdapter;
+    FriendRequestAdapter friendRequestAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,11 +61,9 @@ public class MainActivity extends AppCompatActivity {
 
         // Initialize lists and adapters
         friendList = new ArrayList<>();
-        contactAdapter = new ContactAdapter(this, friendList);
-
-        // Set default adapter
-        recyclerView.setAdapter(contactAdapter);
-        loadContactData();
+        friendRequestList = new ArrayList<>();
+        contactAdapter = new ContactAdapter(this, friendList, 0, this);
+        friendRequestAdapter = new FriendRequestAdapter(this, friendRequestList);
 
         // Set BottomNavigationView click listener
         BottomNavigationView bottomNavigationView = mainLayout.bottomNavigation;
@@ -71,11 +71,9 @@ public class MainActivity extends AppCompatActivity {
             int itemId = item.getItemId();
 
             if (itemId == R.id.action_chat) {
-                // Add chat adapter logic here if needed
                 return true;
             } else if (itemId == R.id.action_contact) {
-                recyclerView.setAdapter(contactAdapter);
-                loadContactData(); // Load contact data
+                loadFriendRequestsAndContacts();  // Load both contacts and friend requests when "Contact" is clicked
                 return true;
             } else if (itemId == R.id.action_profile) {
                 Intent intent = new Intent(MainActivity.this, ProfileActivity.class);
@@ -87,73 +85,142 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // Load the contact data from Firebase
+    // Load both contacts and friend requests
+    private void loadFriendRequestsAndContacts() {
+        loadFriendRequestSummary();  // Load friend request summary
+        loadContactData();  // Load contact data
+    }
+
+    // Load the contact data (friends) from Firebase
     private void loadContactData() {
-        // Clear the list before adding new data
-        friendList.clear();
+        friendList.clear();  // Clear the existing friend list
 
-        reference.child("Users").addChildEventListener(new ChildEventListener() {
+        String currentUserId = auth.getCurrentUser().getUid();
+        // Reference to the current user's Friends node
+        DatabaseReference friendsRef = reference.child("Users").child(currentUserId).child("Friends");
+
+        // Get the list of friend UIDs from the Friends node
+        friendsRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
-            public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                User newUser = snapshot.getValue(User.class);
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                for (DataSnapshot friendSnapshot : snapshot.getChildren()) {
+                    // Get each friend's UID
+                    String friendUid = friendSnapshot.getKey();
 
-                if (newUser != null) {
-                    // Use Firebase unique key as user ID
-                    newUser.setId(snapshot.getKey());
+                    // Fetch the friend's details from the Users node using the UID
+                    DatabaseReference userRef = reference.child("Users").child(friendUid);
+                    userRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(@NonNull DataSnapshot userSnapshot) {
+                            User friend = userSnapshot.getValue(User.class);
+                            if (friend != null) {
+                                // Set the friend's UID
+                                friend.setId(userSnapshot.getKey());
 
-                    // Get the image URL from the snapshot and set it to the User object
-                    String imageUrl = snapshot.child("image").getValue(String.class);
-                    newUser.setImage(imageUrl);
+                                // Set the friend's image URL if available
+                                String imageUrl = userSnapshot.child("image").getValue(String.class);
+                                friend.setImage(imageUrl);
 
-                    // Avoid adding the current user to the friend list
-                    if (!newUser.getId().equals(user.getUid())) {
-                        friendList.add(newUser);
-                        contactAdapter.notifyDataSetChanged();  // Notify adapter to refresh RecyclerView
-                    }
+                                // Add the friend to the list and update the adapter
+                                friendList.add(friend);
+                                contactAdapter.notifyDataSetChanged();
+                            }
+                        }
+
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError error) {
+                            // Handle potential errors here
+                        }
+                    });
                 }
             }
 
             @Override
-            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
-                // Handle user data changes if necessary
+            public void onCancelled(@NonNull DatabaseError error) {
+                // Handle potential errors here
             }
+        });
+    }
 
+    // Load friend request summary and filter only "waiting" requests
+    private void loadFriendRequestSummary() {
+        String currentUserId = auth.getCurrentUser().getUid();
+        DatabaseReference requestRef = reference.child("FriendRequest").child(currentUserId);
+
+        requestRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
-            public void onChildRemoved(@NonNull DataSnapshot snapshot) {
-                // Handle user removal if necessary
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                friendRequestList.clear();  // Clear the existing list
+                int waitingRequestCount = 0;  // count the waiting status friend request
+
+                for (DataSnapshot requestSnapshot : snapshot.getChildren()) {
+                    FriendRequest friendRequest = requestSnapshot.getValue(FriendRequest.class);
+                    if (friendRequest != null && "waiting".equals(friendRequest.getStatus())) {
+                        friendRequest.setRequestId(requestSnapshot.getKey());
+                        friendRequestList.add(friendRequest);
+                        waitingRequestCount++;
+                    }
+                }
+
+                contactAdapter = new ContactAdapter(MainActivity.this, friendList, waitingRequestCount, MainActivity.this);
+                recyclerView.setAdapter(contactAdapter);
+                contactAdapter.notifyDataSetChanged();
             }
-
-            @Override
-            public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) { }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) { }
         });
     }
 
-    // Inflate the menu for profile and logout options
+    // Switch to the FriendRequestAdapter
+    @Override
+    public void onFriendRequestCardClick() {
+        switchToFriendRequests();
+    }
+
+    private void switchToFriendRequests() {
+        String currentUserId = auth.getCurrentUser().getUid();
+        DatabaseReference requestRef = reference.child("FriendRequest").child(currentUserId);
+
+        requestRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                friendRequestList.clear();
+                for (DataSnapshot requestSnapshot : snapshot.getChildren()) {
+                    FriendRequest friendRequest = requestSnapshot.getValue(FriendRequest.class);
+                    if (friendRequest != null) {
+                        friendRequest.setRequestId(requestSnapshot.getKey());
+                        friendRequestList.add(friendRequest);
+                    }
+                }
+                friendRequestAdapter.notifyDataSetChanged();
+                recyclerView.setAdapter(friendRequestAdapter);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) { }
+        });
+    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater menuInflater = getMenuInflater();
-        menuInflater.inflate(R.menu.chat_menu, menu); // Ensure you have chat_menu.xml in res/menu
+        menuInflater.inflate(R.menu.chat_menu, menu);
         return true;
     }
 
-    // Handle menu item clicks
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         if (item.getItemId() == R.id.action_profile) {
-            // Navigate to Profile Activity
             startActivity(new Intent(this, ProfileActivity.class));
             return true;
         } else if (item.getItemId() == R.id.action_signout) {
-            // Sign out and go to Login Activity
             auth.signOut();
             startActivity(new Intent(this, LoginActivity.class));
             finish();
             return true;
         } else if (item.getItemId() == R.id.action_addFriend) {
-            startActivity(new Intent(this,AddFriendActivity.class));
+            startActivity(new Intent(this, AddFriendActivity.class));
         }
 
         return super.onOptionsItemSelected(item);
