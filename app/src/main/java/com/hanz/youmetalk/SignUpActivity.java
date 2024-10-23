@@ -98,7 +98,27 @@ public class SignUpActivity extends AppCompatActivity {
             } else if (password.length() < 6) {
                 Toast.makeText(SignUpActivity.this, "Password must be at least 6 characters.", Toast.LENGTH_SHORT).show();
             } else {
-                checkYouMeIdUnique(youMeId, email, password, userName);
+                checkEmailUnique(email, youMeId, password, userName);
+            }
+        });
+    }
+
+    // Check whether email is unique
+    private void checkEmailUnique(String email, String youMeId, String password, String userName) {
+        reference.child("Users").orderByChild("email").equalTo(email).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists()) {
+                    Toast.makeText(SignUpActivity.this, "This email is already registered. Please use another.", Toast.LENGTH_SHORT).show();
+                } else {
+                    // Proceed to check YouMeId
+                    checkYouMeIdUnique(youMeId, email, password, userName);
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                Toast.makeText(SignUpActivity.this, "Error checking email uniqueness.", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -122,7 +142,7 @@ public class SignUpActivity extends AppCompatActivity {
         });
     }
 
-    // Registration process, called only when YouMeID is unique
+    // Registration process, called only when YouMeID and email are unique
     private void signup(String email, String password, String userName, String youMeId) {
         auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener(task -> {
             if (task.isSuccessful()) {
@@ -131,6 +151,7 @@ public class SignUpActivity extends AppCompatActivity {
                     Map<String, Object> userMap = new HashMap<>();
                     userMap.put("userName", userName);
                     userMap.put("youMeId", youMeId);
+                    userMap.put("email", email);
 
                     if (imageControl) {
                         uploadUserImage(userMap, uid);
@@ -150,6 +171,7 @@ public class SignUpActivity extends AppCompatActivity {
         });
     }
 
+    // Upload user image to Firebase Storage
     private void uploadUserImage(Map<String, Object> userMap, String uid) {
         UUID randomID = UUID.randomUUID();
         String imageName = "images/" + randomID + ".jpg";
@@ -169,12 +191,14 @@ public class SignUpActivity extends AppCompatActivity {
         });
     }
 
+    // Navigate to main activity
     private void navigateToMain() {
         Intent intent = new Intent(SignUpActivity.this, MainActivity.class);
         startActivity(intent);
         finish();
     }
 
+    // Open image chooser for selecting user profile image
     public void imageChooser() {
         Intent intent = new Intent();
         intent.setType("image/*");
