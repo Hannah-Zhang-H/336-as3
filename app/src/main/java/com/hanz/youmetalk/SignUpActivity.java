@@ -3,7 +3,10 @@ package com.hanz.youmetalk;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Button;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -11,6 +14,8 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
@@ -21,7 +26,6 @@ import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.hanz.youmetalk.databinding.ActivitySignUpBinding;
-import com.squareup.picasso.Picasso;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -33,7 +37,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class SignUpActivity extends AppCompatActivity {
-    private ExecutorService executorService = Executors.newSingleThreadExecutor(); // For uploading image in a new thread to speed up
+    private ExecutorService executorService = Executors.newSingleThreadExecutor(); // For uploading image in a new thread
+    private ProgressBar progressBar; // ProgressBar for tracking upload progress
+    private TextView progressText;  // Display progressbar progress text
 
     private ActivitySignUpBinding signUpLayout;
     private CircleImageView imageViewCircle;
@@ -66,6 +72,8 @@ public class SignUpActivity extends AppCompatActivity {
         storageReference = firebaseStorage.getReference();
 
         // Assign UI elements
+        progressBar = signUpLayout.uploadProgressBar; // Initialise the ProgressBar
+        progressText = signUpLayout.uploadProgressText; // Initialise textView of progressbar
         imageViewCircle = signUpLayout.imageViewCircle;
         editTextEmailSignup = signUpLayout.editTextEmailSignup;
         editTextPasswordSignup = signUpLayout.editTextPasswordSignup;
@@ -81,7 +89,13 @@ public class SignUpActivity extends AppCompatActivity {
                         Intent data = result.getData();
                         if (data != null) {
                             imageUri = data.getData();
-                            Picasso.get().load(imageUri).into(imageViewCircle);
+                            // Use Glide to load the selected image into the CircleImageView
+                            Glide.with(this)
+                                    .load(imageUri)
+                                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                    .override(300, 300)  // Resize to 300x300 pixels
+                                    .placeholder(R.drawable.account)  // Optional: placeholder image
+                                    .into(imageViewCircle);
                             imageControl = true;
                         }
                     }
@@ -175,28 +189,49 @@ public class SignUpActivity extends AppCompatActivity {
         });
     }
 
-    // Upload user image to Firebase Storage
+    // Upload user image to Firebase Storage with progress listener and text update
     private void uploadUserImage(Map<String, Object> userMap, String uid) {
         UUID randomID = UUID.randomUUID();
         String imageName = "images/" + randomID + ".jpg";
 
-        // Run the upload in a background thread
+        // Show the progress bar and text before uploading starts
+        progressBar.setVisibility(View.VISIBLE);
+        progressText.setVisibility(View.VISIBLE);
+
+        // Upload image in a background thread
         executorService.execute(() -> {
-            storageReference.child(imageName).putFile(imageUri).addOnSuccessListener(taskSnapshot -> {
-                storageReference.child(imageName).getDownloadUrl().addOnSuccessListener(uri -> {
+            StorageReference imageRef = storageReference.child(imageName);
+
+            // Upload file and add progress listener
+            imageRef.putFile(imageUri).addOnProgressListener(taskSnapshot -> {
+                // Calculate progress percentage
+                double progress = (100.0 * taskSnapshot.getBytesTransferred()) / taskSnapshot.getTotalByteCount();
+                // Update progress bar and text
+                runOnUiThread(() -> {
+                    progressBar.setProgress((int) progress);
+                    progressText.setText("Upload Progress: " + (int) progress + "%");
+                });
+            }).addOnSuccessListener(taskSnapshot -> {
+                imageRef.getDownloadUrl().addOnSuccessListener(uri -> {
                     String filePath = uri.toString();
                     userMap.put("image", filePath);
                     reference.child("Users").child(uid).setValue(userMap).addOnSuccessListener(unused -> {
                         runOnUiThread(() -> {
                             Toast.makeText(SignUpActivity.this, "Successfully registered and stored to database.", Toast.LENGTH_SHORT).show();
+                            progressBar.setVisibility(View.GONE); // Hide progress bar after upload
+                            progressText.setVisibility(View.GONE); // Hide progress text after upload
                             navigateToMain();
                         });
                     }).addOnFailureListener(e -> runOnUiThread(() -> {
                         Toast.makeText(SignUpActivity.this, "Failed to store to database.", Toast.LENGTH_SHORT).show();
+                        progressBar.setVisibility(View.GONE); // Hide progress bar on failure
+                        progressText.setVisibility(View.GONE); // Hide progress text on failure
                     }));
                 });
             }).addOnFailureListener(e -> runOnUiThread(() -> {
                 Toast.makeText(SignUpActivity.this, "Image upload failed.", Toast.LENGTH_SHORT).show();
+                progressBar.setVisibility(View.GONE); // Hide progress bar on failure
+                progressText.setVisibility(View.GONE); // Hide progress text on failure
             }));
         });
     }
