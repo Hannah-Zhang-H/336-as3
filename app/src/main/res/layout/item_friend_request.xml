@@ -53,19 +53,19 @@
             android:id="@+id/buttonAccept"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:backgroundTint="@color/light_green"
             android:text="Accept"
-            android:textColor="@android:color/white"
-            android:backgroundTint="@android:color/holo_green_dark" />
+            android:textColor="@android:color/white" />
 
         <!-- Decline Button -->
         <Button
             android:id="@+id/buttonDecline"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:backgroundTint="#D6386A"
             android:text="Decline"
-            android:textColor="@android:color/white"
-            android:backgroundTint="@android:color/holo_red_dark"
-            android:layout_marginStart="8dp"/>
+            android:textColor="@android:color/white" />
     </LinearLayout>
 
 </androidx.cardview.widget.CardView>

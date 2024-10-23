@@ -1,10 +1,10 @@
 <resources>
     <string name="app_name">youmetalk</string>
-    <string name="sign_up_now">Sign up now</string>
+    <string name="sign_up_now"> Sign up now</string>
     <string name="not_a_member">Not a member?</string>
     <string name="log_in">Log in</string>
     <string name="password">Password</string>
-    <string name="email">Email</string>
+    <string name="email">Enter your email please…</string>
     <string name="loginpic">LoginPic</string>
     <string name="forget_password">Forget password</string>
     <string name="user_name">User Name</string>
@@ -12,4 +12,8 @@
     <string name="sign_out">Sign Out</string>
     <string name="sendmessage">SendMessage</string>
     <string name="delete">Delete</string>
+    <string name="make_a_nickname_for_yourself">Make a nickname for yourself</string>
+    <string name="create_your_youmeid_to_add_more_friends">Create YouMeID, add more friends</string>
+    <string name="user_name_">User Name</string>
+    <string name="decline_add_friend">You declined the friend request.</string>
 </resources>

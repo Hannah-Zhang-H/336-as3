@@ -103,7 +103,7 @@ public class SignUpActivity extends AppCompatActivity {
         });
     }
 
-    // 检查 YouMeID 是否唯一
+    // Check whether YouMeID is unique
     private void checkYouMeIdUnique(String youMeId, String email, String password, String userName) {
         reference.child("Users").orderByChild("youMeId").equalTo(youMeId).addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
@@ -122,7 +122,7 @@ public class SignUpActivity extends AppCompatActivity {
         });
     }
 
-    // 注册流程，只有在 YouMeID 唯一时才调用
+    // Registration process, called only when YouMeID is unique
     private void signup(String email, String password, String userName, String youMeId) {
         auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener(task -> {
             if (task.isSuccessful()) {
