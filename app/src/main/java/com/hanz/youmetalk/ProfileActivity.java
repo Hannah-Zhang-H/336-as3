@@ -31,10 +31,14 @@ import com.squareup.picasso.Picasso;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
 public class ProfileActivity extends AppCompatActivity {
+    // Initialize ExecutorService for background tasks
+    private ExecutorService executorService = Executors.newSingleThreadExecutor();
     private ActivityProfileBinding profileLayout;
     private CircleImageView imageViewProfile;
     private TextInputEditText editTextUserNameUpdate, editTextYouMeIdUpdate;
@@ -181,46 +185,56 @@ public class ProfileActivity extends AppCompatActivity {
 
         // Update image only if the user has selected a new one
         if (imageControl) {
-            try {
-                BitmapFactory.Options options = new BitmapFactory.Options();
-                options.inSampleSize = 4; // Compression rate
-                Bitmap bitmap = BitmapFactory.decodeStream(getContentResolver().openInputStream(imageUri), null, options);
+            // Use ExecutorService to run image processing in the background
+            executorService.execute(() -> {
+                try {
+                    BitmapFactory.Options options = new BitmapFactory.Options();
+                    options.inSampleSize = 4; // Compression rate
+                    Bitmap bitmap = BitmapFactory.decodeStream(getContentResolver().openInputStream(imageUri), null, options);
 
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 50, baos);
-                byte[] imageData = baos.toByteArray();
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 50, baos);
+                    byte[] imageData = baos.toByteArray();
 
-                UUID randomID = UUID.randomUUID();
-                String imageName = "images/" + randomID + ".jpg";
-                StorageReference imageRef = storageReference.child(imageName);
+                    UUID randomID = UUID.randomUUID();
+                    String imageName = "images/" + randomID + ".jpg";
+                    StorageReference imageRef = storageReference.child(imageName);
 
-                imageRef.putBytes(imageData).addOnSuccessListener(taskSnapshot -> {
-                    imageRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                        String filePath = uri.toString();
-                        reference.child("Users").child(firebaseUser.getUid()).child("image").setValue(filePath)
-                                .addOnSuccessListener(unused -> {
-                                    Toast.makeText(ProfileActivity.this, "Profile updated successfully.", Toast.LENGTH_SHORT).show();
-                                    // Optionally, you can navigate back if successful
-                                })
-                                .addOnFailureListener(e -> {
-                                    Toast.makeText(ProfileActivity.this, "Failed to update profile.", Toast.LENGTH_SHORT).show();
-                                    buttonUpdate.setEnabled(true);
-                                });
+                    // Upload the image in the background
+                    imageRef.putBytes(imageData).addOnSuccessListener(taskSnapshot -> {
+                        imageRef.getDownloadUrl().addOnSuccessListener(uri -> {
+                            String filePath = uri.toString();
+                            reference.child("Users").child(firebaseUser.getUid()).child("image").setValue(filePath)
+                                    .addOnSuccessListener(unused -> {
+                                        runOnUiThread(() -> {
+                                            Toast.makeText(ProfileActivity.this, "Profile updated successfully.", Toast.LENGTH_SHORT).show();
+                                            // Optionally, navigate back if successful
+                                        });
+                                    })
+                                    .addOnFailureListener(e -> runOnUiThread(() -> {
+                                        Toast.makeText(ProfileActivity.this, "Failed to update profile.", Toast.LENGTH_SHORT).show();
+                                        buttonUpdate.setEnabled(true);
+                                    }));
+                        });
+                    }).addOnFailureListener(e -> runOnUiThread(() -> {
+                        Toast.makeText(ProfileActivity.this, "Image upload failed.", Toast.LENGTH_SHORT).show();
+                        buttonUpdate.setEnabled(true);
+                    }));
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, "Error processing image.", Toast.LENGTH_SHORT).show();
+                        buttonUpdate.setEnabled(true);
                     });
-                }).addOnFailureListener(e -> {
-                    Toast.makeText(ProfileActivity.this, "Image upload failed.", Toast.LENGTH_SHORT).show();
-                    buttonUpdate.setEnabled(true);
-                });
-            } catch (Exception e) {
-                e.printStackTrace();
-                Toast.makeText(this, "Error processing image.", Toast.LENGTH_SHORT).show();
-                buttonUpdate.setEnabled(true);
-            }
+                }
+            });
         } else {
-            // Do not navigate back if no new image is selected and update is successful
+            // Update success message without image change
             Toast.makeText(this, "Profile updated successfully.", Toast.LENGTH_SHORT).show();
         }
     }
+
 
     public void imageChooser() {
         Intent intent = new Intent();

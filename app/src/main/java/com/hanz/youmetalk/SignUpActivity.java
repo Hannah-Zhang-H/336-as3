@@ -29,7 +29,11 @@ import java.util.UUID;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 public class SignUpActivity extends AppCompatActivity {
+    private ExecutorService executorService = Executors.newSingleThreadExecutor(); // For uploading image in a new thread to speed up
 
     private ActivitySignUpBinding signUpLayout;
     private CircleImageView imageViewCircle;
@@ -175,19 +179,25 @@ public class SignUpActivity extends AppCompatActivity {
     private void uploadUserImage(Map<String, Object> userMap, String uid) {
         UUID randomID = UUID.randomUUID();
         String imageName = "images/" + randomID + ".jpg";
-        storageReference.child(imageName).putFile(imageUri).addOnSuccessListener(taskSnapshot -> {
-            storageReference.child(imageName).getDownloadUrl().addOnSuccessListener(uri -> {
-                String filePath = uri.toString();
-                userMap.put("image", filePath);
-                reference.child("Users").child(uid).setValue(userMap).addOnSuccessListener(unused -> {
-                    Toast.makeText(SignUpActivity.this, "Successfully registered and stored to database.", Toast.LENGTH_SHORT).show();
-                    navigateToMain();
-                }).addOnFailureListener(e -> {
-                    Toast.makeText(SignUpActivity.this, "Failed to store to database.", Toast.LENGTH_SHORT).show();
+
+        // Run the upload in a background thread
+        executorService.execute(() -> {
+            storageReference.child(imageName).putFile(imageUri).addOnSuccessListener(taskSnapshot -> {
+                storageReference.child(imageName).getDownloadUrl().addOnSuccessListener(uri -> {
+                    String filePath = uri.toString();
+                    userMap.put("image", filePath);
+                    reference.child("Users").child(uid).setValue(userMap).addOnSuccessListener(unused -> {
+                        runOnUiThread(() -> {
+                            Toast.makeText(SignUpActivity.this, "Successfully registered and stored to database.", Toast.LENGTH_SHORT).show();
+                            navigateToMain();
+                        });
+                    }).addOnFailureListener(e -> runOnUiThread(() -> {
+                        Toast.makeText(SignUpActivity.this, "Failed to store to database.", Toast.LENGTH_SHORT).show();
+                    }));
                 });
-            });
-        }).addOnFailureListener(e -> {
-            Toast.makeText(SignUpActivity.this, "Image upload failed.", Toast.LENGTH_SHORT).show();
+            }).addOnFailureListener(e -> runOnUiThread(() -> {
+                Toast.makeText(SignUpActivity.this, "Image upload failed.", Toast.LENGTH_SHORT).show();
+            }));
         });
     }
 
