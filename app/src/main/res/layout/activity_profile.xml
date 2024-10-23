@@ -25,7 +25,7 @@
         android:id="@+id/textView2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="40dp"
         android:layout_marginBottom="40dp"
         android:text="Tap to upload your avatar"
         android:textColor="#3F51B5"
@@ -41,7 +41,8 @@
         android:id="@+id/textInputLayoutUserName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="13dp"
+        android:layout_marginTop="18dp"
+        android:layout_marginBottom="5dp"
         android:gravity="center"
         app:boxBackgroundMode="filled"
         app:layout_constraintBottom_toTopOf="@+id/textInputLayoutYouMeID"
@@ -63,6 +64,7 @@
         android:id="@+id/textInputLayoutYouMeID"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
         android:layout_marginBottom="10dp"
         android:gravity="center"
         app:boxBackgroundMode="filled"
@@ -74,7 +76,7 @@
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/editTextYouMeIdUpdate"
-            android:layout_width="282dp"
+            android:layout_width="260dp"
             android:layout_height="wrap_content"
             android:gravity="center"
             android:hint="YouMeID"
@@ -131,8 +133,8 @@
 
     <ImageView
         android:id="@+id/imageView5"
-        android:layout_width="335dp"
-        android:layout_height="141dp"
+        android:layout_width="223dp"
+        android:layout_height="167dp"
         android:layout_marginStart="20dp"
         android:layout_marginEnd="20dp"
         android:layout_marginBottom="3dp"

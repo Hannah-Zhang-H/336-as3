@@ -18,4 +18,6 @@
     <string name="decline_add_friend">You declined the friend request.</string>
     <string name="tap_to_upload_an_avatar">Tap to upload an avatar</string>
     <string name="upload_progress_0">Upload Progress: 0%</string>
+    <string name="enter_friend_s_youmeid">Enter friend\'s YouMeID</string>
+    <string name="search">Search</string>
 </resources>
