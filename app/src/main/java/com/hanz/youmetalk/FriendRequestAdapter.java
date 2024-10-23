@@ -7,6 +7,8 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
@@ -126,6 +128,9 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
                 senderRef.child(currentUserId).setValue(true).addOnCompleteListener(senderTask -> {
                     if (senderTask.isSuccessful()) {
                         updateRequestStatusAndReload(request, "accepted");
+
+
+
                     }
                 });
             }
@@ -135,6 +140,8 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
     // reload the view after decline the request
     private void declineFriendRequest(FriendRequest request) {
         updateRequestStatusAndReload(request, "declined");
+        // Remind the user that they have declined the adding new friend request
+        Toast.makeText(context, R.string.decline_add_friend, Toast.LENGTH_SHORT).show();
     }
 
     private void updateRequestStatusAndReload(FriendRequest request, String status) {

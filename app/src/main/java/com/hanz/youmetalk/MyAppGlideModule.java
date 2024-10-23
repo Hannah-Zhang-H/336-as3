@@ -6,4 +6,5 @@ import com.bumptech.glide.module.AppGlideModule;
 @GlideModule
 public class MyAppGlideModule extends AppGlideModule {
     // You can leave this empty or customize Glide's configuration here
+    // 你删的时候注意一下啊
 }
