@@ -24,7 +24,6 @@ import androidx.work.WorkManager;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -114,7 +113,7 @@ public class MainActivity extends AppCompatActivity
             loadFriendRequestsAndContacts();
         }
 
-        // backend message check schedule
+        // message checker scheduler
         Constraints constraints = new Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .setRequiresBatteryNotLow(true)
@@ -127,34 +126,6 @@ public class MainActivity extends AppCompatActivity
 
         WorkManager.getInstance(this).enqueue(workRequest);
 
-
-        if (user != null) {
-            listenForNewMessages(user.getUid());
-        }
-    }
-
-    // listen for new message at front end and send notification
-    private void listenForNewMessages(String userId) {
-        reference.child("Messages").addChildEventListener(new ChildEventListener() {
-            @Override
-            public void onChildAdded(@NonNull DataSnapshot snapshot, String previousChildName) {
-                checkForUnreadMessages(snapshot, userId);
-            }
-
-            @Override
-            public void onChildChanged(@NonNull DataSnapshot snapshot, String previousChildName) {
-                checkForUnreadMessages(snapshot, userId);
-            }
-
-            @Override
-            public void onChildRemoved(@NonNull DataSnapshot snapshot) { }
-
-            @Override
-            public void onChildMoved(@NonNull DataSnapshot snapshot, String previousChildName) { }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) { }
-        });
     }
 
     // check unread messages and send notification
