@@ -112,16 +112,10 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
         });
 
         conversationId = getConversationId(currentUserId, friendId);
-
         loadMessages();
 
 
     }
-
-
-
-
-
 
 
     // Play send message sound effect

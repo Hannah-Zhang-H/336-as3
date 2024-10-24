@@ -8,8 +8,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
 import com.google.firebase.auth.FirebaseAuth;
@@ -18,6 +20,7 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -46,7 +49,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
 
         holder.userName.setText(chatUser.getUserName());
 
-        // load profile image
+        // Load profile image
         if (chatUser.getImage() != null && !chatUser.getImage().isEmpty()) {
             Glide.with(context)
                     .load(chatUser.getImage())
@@ -56,30 +59,23 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
             holder.profileImage.setImageResource(R.drawable.profile_placeholder);
         }
 
-        // retrieve the lasted message
+        // Retrieve the last message
         String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
         DatabaseReference messageRef = FirebaseDatabase.getInstance().getReference("Messages");
 
-        // filter the messages relate to current user
         messageRef.addListenerForSingleValueEvent(new ValueEventListener() {
-
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 String lastMessageContent = "";
                 long lastMessageTimestamp = 0;
 
                 for (DataSnapshot messageSnapshot : snapshot.getChildren()) {
-                    // Navigate deeper into the actual message content under each conversation
                     for (DataSnapshot messageDetailSnapshot : messageSnapshot.child("messages").getChildren()) {
                         String fromUid = messageDetailSnapshot.child("from").getValue(String.class);
                         String toUid = messageDetailSnapshot.child("to").getValue(String.class);
                         String messageContent = messageDetailSnapshot.child("message").getValue(String.class);
                         Long timestamp = messageDetailSnapshot.child("timestamp").getValue(Long.class);
 
-                        // Log debug to check the values
-                        Log.d("ChatAdapter", "fromUid: " + fromUid + ", toUid: " + toUid + ", message: " + messageContent + ", timestamp: " + timestamp);
-
-                        // Ensure all fields are valid
                         if (fromUid == null || toUid == null || messageContent == null || timestamp == null) {
                             continue;
                         }
@@ -87,8 +83,6 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
                         // Check if the message involves the current user and the chat user
                         if ((fromUid.equals(currentUserId) && toUid.equals(chatUser.getId())) ||
                                 (fromUid.equals(chatUser.getId()) && toUid.equals(currentUserId))) {
-
-                            // Update the last message and timestamp
                             lastMessageContent = messageContent;
                             lastMessageTimestamp = timestamp;
                         }
@@ -108,9 +102,24 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
                     String dateString = sdf.format(new Date(lastMessageTimestamp));
                     holder.messageDate.setText(dateString);
                 }
+
+                if (chatUser.getLastSeenMessageTimestamp() == 0) {
+                    // 用户还没有查看过这个对话
+                    // 使用默认颜色 (R.color.purple_500)
+                    holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.default_background));
+                } else {
+                    // 用户之前查看过这个对话
+                    // 比较消息时间和用户上次查看消息的时间
+                    if (lastMessageTimestamp > chatUser.getLastSeenMessageTimestamp()) {
+                        // 有新消息
+                        holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.new_message_background));
+                    } else {
+                        // 没有新消息，使用默认背景颜色
+                        holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.default_background));
+                    }
+                }
+
             }
-
-
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
@@ -118,14 +127,35 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
             }
         });
 
-        // switch to mytalkactivity when the card is clicked
+        // Switch to MyTalkActivity when the card is clicked
         holder.itemView.setOnClickListener(view -> {
             Intent intent = new Intent(context, MyTalkActivity.class);
             intent.putExtra("friendId", chatUser.getId());
             intent.putExtra("friendName", chatUser.getUserName());
             context.startActivity(intent);
+
+            // 更新本地的 lastSeenMessageTimestamp
+            long currentTimestamp = System.currentTimeMillis();
+            chatUser.setLastSeenMessageTimestamp(currentTimestamp);
+
+            // 将时间戳保存到 Firebase
+            saveLastSeenTimestampToFirebase(chatUser.getId(), currentTimestamp);
         });
     }
+
+    // 保存时间戳到 Firebase
+    private void saveLastSeenTimestampToFirebase(String userId, long timestamp) {
+        DatabaseReference userRef = FirebaseDatabase.getInstance().getReference("Users").child(userId);
+        userRef.child("lastSeenMessageTimestamp").setValue(timestamp)
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        Log.d("Firebase", "Last seen message timestamp updated successfully.");
+                    } else {
+                        Log.e("Firebase", "Failed to update last seen message timestamp.");
+                    }
+                });
+    }
+
 
     @Override
     public int getItemCount() {
