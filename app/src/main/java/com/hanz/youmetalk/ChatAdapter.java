@@ -15,14 +15,15 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 
@@ -30,10 +31,21 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
 
     private Context context;
     private List<User> chatUserList;
+    private HashMap<String, Integer> unreadMessageCounts;
+    private HashMap<String, Boolean> hasUnreadMessages;
+    private HashMap<String, String> lastMessages;
+    private HashMap<String, Long> lastMessageTimestamps;
 
     public ChatAdapter(Context context, List<User> chatUserList) {
         this.context = context;
         this.chatUserList = chatUserList;
+        unreadMessageCounts = new HashMap<>();
+        hasUnreadMessages = new HashMap<>();
+        lastMessages = new HashMap<>();
+        lastMessageTimestamps = new HashMap<>();
+
+        // add firebase listener
+        listenForMessageUpdates();
     }
 
     @NonNull
@@ -46,10 +58,8 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
     @Override
     public void onBindViewHolder(@NonNull ChatViewHolder holder, int position) {
         User chatUser = chatUserList.get(position);
-
         holder.userName.setText(chatUser.getUserName());
 
-        // Load profile image
         if (chatUser.getImage() != null && !chatUser.getImage().isEmpty()) {
             Glide.with(context)
                     .load(chatUser.getImage())
@@ -59,17 +69,75 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
             holder.profileImage.setImageResource(R.drawable.profile_placeholder);
         }
 
-        // Retrieve the last message
+        // update the last message and unread count
+        updateMessageStatus(chatUser.getId(), holder);
+
+        // click card start talk activity
+        holder.itemView.setOnClickListener(view -> {
+            Intent intent = new Intent(context, MyTalkActivity.class);
+            intent.putExtra("friendId", chatUser.getId());
+            intent.putExtra("friendName", chatUser.getUserName());
+            context.startActivity(intent);
+        });
+    }
+
+    @Override
+    public int getItemCount() {
+        return chatUserList.size();
+    }
+
+    // add firebase listener
+    private void listenForMessageUpdates() {
         String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
         DatabaseReference messageRef = FirebaseDatabase.getInstance().getReference("Messages");
 
-        messageRef.addListenerForSingleValueEvent(new ValueEventListener() {
+        messageRef.addChildEventListener(new ChildEventListener() {
+            @Override
+            public void onChildAdded(@NonNull DataSnapshot snapshot, String previousChildName) {
+                updateUnreadMessages(snapshot, currentUserId);
+            }
+
+            @Override
+            public void onChildChanged(@NonNull DataSnapshot snapshot, String previousChildName) {
+                updateUnreadMessages(snapshot, currentUserId);
+            }
+
+            @Override
+            public void onChildRemoved(@NonNull DataSnapshot snapshot) { }
+
+            @Override
+            public void onChildMoved(@NonNull DataSnapshot snapshot, String previousChildName) { }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e("ChatAdapter", "Error listening to messages: " + error.getMessage());
+            }
+        });
+    }
+
+    // update the unread message, last message and record the timestamp
+    private void updateUnreadMessages(DataSnapshot snapshot, String currentUserId) {
+        String chatUserId = snapshot.getKey().contains(currentUserId)
+                ? snapshot.getKey().replace(currentUserId, "").replace("_", "")
+                : null;
+
+        if (chatUserId != null) {
+            // update the message status of specific user
+            loadLastMessageAndUnreadCount(chatUserId);
+        }
+    }
+
+    private void loadLastMessageAndUnreadCount(String chatUserId) {
+        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        DatabaseReference messageRef = FirebaseDatabase.getInstance().getReference("Messages");
+
+        messageRef.addListenerForSingleValueEvent(new com.google.firebase.database.ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
+                int unreadMessageCount = 0;
+                boolean hasUnreadMessage = false;
                 String lastMessageContent = "";
                 long lastMessageTimestamp = 0;
-                boolean hasUnreadMessage = false;  // trace if any unread message
-                int unreadMessageCount = 0; // trace the count of unread messages
 
                 for (DataSnapshot messageSnapshot : snapshot.getChildren()) {
                     for (DataSnapshot messageDetailSnapshot : messageSnapshot.child("messages").getChildren()) {
@@ -77,20 +145,18 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
                         String toUid = messageDetailSnapshot.child("to").getValue(String.class);
                         String messageContent = messageDetailSnapshot.child("message").getValue(String.class);
                         Long timestamp = messageDetailSnapshot.child("timestamp").getValue(Long.class);
-                        Boolean isRead = messageDetailSnapshot.child("isRead").getValue(Boolean.class);  // retrieve reading status
+                        Boolean isRead = messageDetailSnapshot.child("isRead").getValue(Boolean.class);
 
                         if (fromUid == null || toUid == null || messageContent == null || timestamp == null || isRead == null) {
                             continue;
                         }
 
-                        // check if the message is between current user and specific friend
-                        if ((fromUid.equals(currentUserId) && toUid.equals(chatUser.getId())) ||
-                                (fromUid.equals(chatUser.getId()) && toUid.equals(currentUserId))) {
+                        if ((fromUid.equals(currentUserId) && toUid.equals(chatUserId)) ||
+                                (fromUid.equals(chatUserId) && toUid.equals(currentUserId))) {
                             lastMessageContent = messageContent;
                             lastMessageTimestamp = timestamp;
 
-                            // if the message is from friend, flag as hasUnreadMessage
-                            if (fromUid.equals(chatUser.getId()) && !isRead) {
+                            if (fromUid.equals(chatUserId) && !isRead) {
                                 hasUnreadMessage = true;
                                 unreadMessageCount++;
                             }
@@ -98,33 +164,18 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
                     }
                 }
 
-                // show the content of the last message from friend
-                if (!lastMessageContent.isEmpty()) {
-                    holder.lastMessage.setText(lastMessageContent);
-                } else {
-                    holder.lastMessage.setText("No messages yet");
-                }
+                // save the last message content and time stamp
+                lastMessages.put(chatUserId, lastMessageContent);
+                lastMessageTimestamps.put(chatUserId, lastMessageTimestamp);
 
-                // display timestamp
-                if (lastMessageTimestamp != 0) {
-                    SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
-                    String dateString = sdf.format(new Date(lastMessageTimestamp));
-                    holder.messageDate.setText(dateString);
-                }
+                // update the unread count and background color
+                unreadMessageCounts.put(chatUserId, unreadMessageCount);
+                hasUnreadMessages.put(chatUserId, hasUnreadMessage);
 
-                // Update unreadCountTextView
-                if (unreadMessageCount > 0) {
-                    holder.unreadCountTextView.setText(String.valueOf(unreadMessageCount));
-                    holder.unreadCountTextView.setVisibility(View.VISIBLE);  // display the count
-                } else {
-                    holder.unreadCountTextView.setVisibility(View.GONE);  // hide the count
-                }
-
-                // update the background color based on the Unread Message
-                if (hasUnreadMessage) {
-                    holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.new_message_background));
-                } else {
-                    holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.default_background));
+                // find the user in the list and refresh
+                int position = findUserPosition(chatUserId);
+                if (position != -1) {
+                    notifyItemChanged(position);  // only refresh the item changed
                 }
             }
 
@@ -132,47 +183,60 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
             public void onCancelled(@NonNull DatabaseError error) {
                 Log.e("ChatAdapter", "Error retrieving messages: " + error.getMessage());
             }
-
-        });
-
-        // Switch to MyTalkActivity when the card is clicked
-        holder.itemView.setOnClickListener(view -> {
-            Intent intent = new Intent(context, MyTalkActivity.class);
-            intent.putExtra("friendId", chatUser.getId());
-            intent.putExtra("friendName", chatUser.getUserName());
-            context.startActivity(intent);
-
-//            // update local lastSeenMessageTimestamp
-//            long currentTimestamp = System.currentTimeMillis();
-//            chatUser.setLastSeenMessageTimestamp(currentTimestamp);
-//
-//            // save timpstap to Firebase
-//            saveLastSeenTimestampToFirebase(chatUser.getId(), currentTimestamp);
         });
     }
 
-//    // save timestamp to Firebase
-//    private void saveLastSeenTimestampToFirebase(String userId, long timestamp) {
-//        DatabaseReference userRef = FirebaseDatabase.getInstance().getReference("Users").child(userId);
-//        userRef.child("lastSeenMessageTimestamp").setValue(timestamp)
-//                .addOnCompleteListener(task -> {
-//                    if (task.isSuccessful()) {
-//                        Log.d("Firebase", "Last seen message timestamp updated successfully.");
-//                    } else {
-//                        Log.e("Firebase", "Failed to update last seen message timestamp.");
-//                    }
-//                });
-//    }
+    // check the postion of the user
+    private int findUserPosition(String chatUserId) {
+        for (int i = 0; i < chatUserList.size(); i++) {
+            if (chatUserList.get(i).getId().equals(chatUserId)) {
+                return i;
+            }
+        }
+        return -1;  // user not in the list
+    }
 
 
-    @Override
-    public int getItemCount() {
-        return chatUserList.size();
+    // update the last message, unread count, background
+    private void updateMessageStatus(String chatUserId, ChatViewHolder holder) {
+        int unreadMessageCount = unreadMessageCounts.getOrDefault(chatUserId, 0);
+        boolean hasUnreadMessage = hasUnreadMessages.getOrDefault(chatUserId, false);
+
+        // update unread message
+        if (unreadMessageCount > 0) {
+            holder.unreadCountTextView.setText(String.valueOf(unreadMessageCount));
+            holder.unreadCountTextView.setVisibility(View.VISIBLE);
+        } else {
+            holder.unreadCountTextView.setVisibility(View.GONE);
+        }
+
+        // update last message
+        String lastMessageContent = lastMessages.getOrDefault(chatUserId, "No messages yet");
+        holder.lastMessage.setText(lastMessageContent);
+
+        // update timestamp
+        long lastMessageTimestamp = lastMessageTimestamps.getOrDefault(chatUserId, 0L);
+        if (lastMessageTimestamp != 0) {
+            SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
+            String dateString = sdf.format(new Date(lastMessageTimestamp));
+            holder.messageDate.setText(dateString);
+        } else {
+            holder.messageDate.setText("");
+        }
+
+        // update background color
+        if (hasUnreadMessage) {
+            Log.d("ChatAdapter", "Setting unread background for user: " + chatUserId); // 调试日志
+            holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.new_message_background));
+        } else {
+            Log.d("ChatAdapter", "Setting default background for user: " + chatUserId); // 调试日志
+            holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.default_background));
+        }
     }
 
     // ViewHolder class for chat items
     public static class ChatViewHolder extends RecyclerView.ViewHolder {
-        TextView userName, lastMessage, messageDate,unreadCountTextView;
+        TextView userName, lastMessage, messageDate, unreadCountTextView;
         ImageView profileImage;
 
         public ChatViewHolder(@NonNull View itemView) {
