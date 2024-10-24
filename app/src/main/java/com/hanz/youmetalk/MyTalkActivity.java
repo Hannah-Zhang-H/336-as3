@@ -1,4 +1,6 @@
 package com.hanz.youmetalk;
+
+import android.content.Intent;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.util.Log;
@@ -99,13 +101,16 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
         fab.setOnClickListener(view -> {
             String message = editTextMessage.getText().toString().trim();
             if (!message.isEmpty()) {
-                sendMessage(message);
-                editTextMessage.setText("");
-                playNotificationSound(R.raw.send_message); // Play sound effect
+                // Before sending the message, check if the friend is still valid
+                checkFriendStatusBeforeSending(message);
             }
         });
 
         conversationId = getConversationId(currentUserId, friendId);
+
+        // Check if the friend is still in the friend list before loading messages
+        checkFriendStatus();
+
         loadMessages();
 
         // Set up back press handling
@@ -189,11 +194,84 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
                     .setValue(messageMap).addOnCompleteListener(task -> {
                         if (task.isSuccessful()) {
                             Log.d("MessageStatus", "Message sent successfully");
+                            editTextMessage.setText("");  // Clear the input field after sending
+                            playNotificationSound(R.raw.send_message); // Play sound effect
                         } else {
                             Log.e("MessageStatus", "Failed to send message");
                         }
                     });
         }
+    }
+
+    // Check if the friend is still valid before sending a message
+    private void checkFriendStatusBeforeSending(String message) {
+        DatabaseReference friendRef = reference.child("Users").child(currentUserId).child("Friends").child(friendId);
+        friendRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists()) {
+                    // If the friend still exists, send the message
+                    sendMessage(message);
+                } else {
+                    // If the friend no longer exists, show a warning and do not send the message
+                    Toast.makeText(MyTalkActivity.this, "This friend has been deleted. You cannot send messages.", Toast.LENGTH_SHORT).show();
+                    // Function to delete friend request record
+                    deleteFriendRequest(currentUserId, friendId);  
+                    finish(); // Return to main activity
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                Log.e("Firebase", "Error checking friend status before sending message", databaseError.toException());
+            }
+        });
+    }
+
+    // Function to delete friend request record
+    private void deleteFriendRequest(String currentUserId, String friendId) {
+        DatabaseReference requestRef = FirebaseDatabase.getInstance().getReference("FriendRequest");
+
+        // Remove any friend request between the current user and the friend
+        requestRef.child(friendId).orderByChild("from").equalTo(currentUserId).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                for (DataSnapshot requestSnapshot : snapshot.getChildren()) {
+                    requestSnapshot.getRef().removeValue();
+                }
+
+                // Once everything is deleted, return to MainActivity
+                Intent resultIntent = new Intent();
+                resultIntent.putExtra("deletedFriendId", friendId);
+                setResult(RESULT_OK, resultIntent);
+                finish();
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(MyTalkActivity.this, "Failed to remove friend request", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    // Check if the friend is still in the list when entering the chat
+    private void checkFriendStatus() {
+        DatabaseReference friendRef = reference.child("Users").child(currentUserId).child("Friends").child(friendId);
+        friendRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (!dataSnapshot.exists()) {
+                    // If the friend no longer exists, show a warning and return to the main activity
+                    Toast.makeText(MyTalkActivity.this, "This friend has been deleted.", Toast.LENGTH_SHORT).show();
+                    finish(); // Return to main activity
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                Log.e("Firebase", "Error checking friend status", databaseError.toException());
+            }
+        });
     }
 
     @Override

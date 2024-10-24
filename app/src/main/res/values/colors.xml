@@ -7,7 +7,9 @@
     <color name="teal_200">#80CBC4</color>
     <color name="gray_200">#AFB3B3</color>
     <color name="light_green">#97E627</color>
-    <color name="new_message_background">#B3E3CE</color>
+    <color name="new_message_background">#FFF8B9</color>
     <color name="default_background">#FFFFFF</color>
+    <color name="pink_colour">#D6386A</color>
+
 
 </resources>

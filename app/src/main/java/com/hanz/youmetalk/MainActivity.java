@@ -8,10 +8,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.NotificationCompat;
@@ -52,6 +54,8 @@ public class MainActivity extends AppCompatActivity
     private static final String CURRENT_ADAPTER_KEY = "current_adapter_key";
     private static final String CHANNEL_ID = "message_channel";
     private String currentAdapter = "chatAdapter";  // default adapter
+    public static final int REQUEST_CODE_DELETE_FRIEND = 1001;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -363,4 +367,23 @@ public class MainActivity extends AppCompatActivity
 
         return super.onOptionsItemSelected(item);
     }
+
+
+    @SuppressLint("NotifyDataSetChanged")
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == REQUEST_CODE_DELETE_FRIEND && resultCode == RESULT_OK && data != null) {
+            String deletedFriendId = data.getStringExtra("deletedFriendId");
+            if (deletedFriendId != null) {
+                chatAdapter.removeChatsWithFriend(deletedFriendId);
+                chatAdapter.notifyDataSetChanged();
+            }
+        } else {
+            Log.d("MainActivity", "onActivityResult failed or data is null");
+        }
+    }
+
+
 }

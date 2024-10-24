@@ -1,5 +1,6 @@
 package com.hanz.youmetalk;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
@@ -22,6 +23,7 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -35,6 +37,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
     private HashMap<String, Boolean> hasUnreadMessages;
     private HashMap<String, String> lastMessages;
     private HashMap<String, Long> lastMessageTimestamps;
+
 
     public ChatAdapter(Context context, List<User> chatUserList) {
         this.context = context;
@@ -226,10 +229,10 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
 
         // update background color
         if (hasUnreadMessage) {
-            Log.d("ChatAdapter", "Setting unread background for user: " + chatUserId); // 调试日志
+            Log.d("ChatAdapter", "Setting unread background for user: " + chatUserId);
             holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.new_message_background));
         } else {
-            Log.d("ChatAdapter", "Setting default background for user: " + chatUserId); // 调试日志
+            Log.d("ChatAdapter", "Setting default background for user: " + chatUserId);
             holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.default_background));
         }
     }
@@ -248,4 +251,32 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
             unreadCountTextView = itemView.findViewById(R.id.textViewUnreadCount);
         }
     }
+
+    // Method to remove chats related to a specific friend
+    @SuppressLint("NotifyDataSetChanged")
+    public void removeChatsWithFriend(String friendId) {
+        List<User> updatedUserList = new ArrayList<>();
+        for (User user : chatUserList) {
+            // Keep only the users that are not the deleted friend
+            if (!user.getId().equals(friendId)) {
+                updatedUserList.add(user);
+            }
+        }
+
+        Log.d("ChatAdapter", "Removing friend from chat list: " + friendId);  // 打印日志以检查删除的好友
+        chatUserList.clear();
+        chatUserList.addAll(updatedUserList);
+
+        // Also remove this friend's data from the message status maps
+        unreadMessageCounts.remove(friendId);
+        lastMessages.remove(friendId);
+        lastMessageTimestamps.remove(friendId);
+        hasUnreadMessages.remove(friendId);
+
+
+        Log.d("ChatAdapter", "Chat list size after removal: " + chatUserList.size());  // 打印新的列表长度
+        notifyDataSetChanged();  // Notify the adapter to refresh the view
+    }
+
+
 }

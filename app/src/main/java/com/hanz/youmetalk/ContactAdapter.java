@@ -127,8 +127,11 @@ public class ContactAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 intent.putExtra("userName", friend.getUserName());
                 intent.putExtra("friendName", friend.getUserName());
                 intent.putExtra("friendId", friend.getId());
+
                 itemView.getContext().startActivity(intent);
             });
+
+
         }
     }
 }
