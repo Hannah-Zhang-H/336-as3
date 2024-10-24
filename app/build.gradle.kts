@@ -51,4 +51,5 @@ dependencies {
     implementation(libs.picasso)
     implementation(libs.glide)
     annotationProcessor(libs.compiler)
+    implementation(libs.work.runtime)
 }
