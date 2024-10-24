@@ -9,6 +9,7 @@ public class Model {
     private List<String> deleted_for;
     private long timestamp;
     private String messageId;
+    private boolean isRead;
 
     public Model() {}
 
@@ -58,5 +59,13 @@ public class Model {
 
     public void setMessageId(String messageId) {
         this.messageId = messageId;
+    }
+
+    public boolean isRead() {
+        return isRead;
+    }
+
+    public void setRead(boolean read) {
+        isRead = read;
     }
 }

@@ -138,13 +138,26 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
                     public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
                         Model model = snapshot.getValue(Model.class);
                         if (model != null) {
-                            // check if the message is soft deleted
+                            // check soft deletion
                             if (model.getDeleted_for() == null || !model.getDeleted_for().contains(currentUserId)) {
                                 model.setMessageId(snapshot.getKey()); // set message id
                                 list.add(model);
                                 messageAdapter.notifyDataSetChanged();
                                 recyclerViewMessageArea.scrollToPosition(list.size() - 1);
 
+                                // check if the message is from friend
+                                if (model.getFrom().equals(friendId) && !model.isRead()) {
+                                    // update isRead to true
+                                    reference.child("Messages").child(conversationId).child("messages")
+                                            .child(snapshot.getKey()).child("isRead").setValue(true)
+                                            .addOnCompleteListener(task -> {
+                                                if (task.isSuccessful()) {
+                                                    Log.d("MessageStatus", "Message marked as read");
+                                                } else {
+                                                    Log.e("MessageStatus", "Failed to mark message as read");
+                                                }
+                                            });
+                                }
                             }
                         }
                     }
@@ -168,6 +181,7 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
                 });
     }
 
+
     private void sendMessage(String message) {
         String key = reference.child("Messages").child(conversationId).child("messages").push().getKey();
         if (key != null) {
@@ -175,6 +189,7 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
             messageMap.put("message", message);
             messageMap.put("from", currentUserId);
             messageMap.put("to", friendId);
+            messageMap.put("isRead",false);
             messageMap.put("timestamp", ServerValue.TIMESTAMP);
 
             reference.child("Messages").child(conversationId).child("messages").child(key)

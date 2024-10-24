@@ -1,35 +1,48 @@
 package com.hanz.youmetalk;
 
 import android.annotation.SuppressLint;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.NotificationCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.work.Constraints;
+import androidx.work.NetworkType;
+import androidx.work.PeriodicWorkRequest;
+import androidx.work.WorkManager;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.hanz.youmetalk.databinding.ActivityMainBinding;
-
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
-public class MainActivity extends AppCompatActivity implements ContactAdapter.OnFriendRequestCardClickListener {
+public class MainActivity extends AppCompatActivity
+        implements ContactAdapter.OnFriendRequestCardClickListener, FriendRequestAdapter.FriendRequestListener {
 
     FirebaseAuth auth;
-    RecyclerView recyclerView;
     FirebaseUser user;
     DatabaseReference reference;
     FirebaseDatabase database;
+    RecyclerView recyclerView;
 
     List<User> friendList;
     List<FriendRequest> friendRequestList;
@@ -38,7 +51,8 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
     ChatAdapter chatAdapter;
 
     private static final String CURRENT_ADAPTER_KEY = "current_adapter_key";
-    private String currentAdapter = "chatAdapter"; // set ChatAdapter as default adapter
+    private static final String CHANNEL_ID = "message_channel";
+    private String currentAdapter = "chatAdapter";  // default adapter
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,67 +62,148 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
         ActivityMainBinding mainLayout = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(mainLayout.getRoot());
 
-        // Set up the toolbar
-        setSupportActionBar(mainLayout.toolbar);
+        // set Toolbar
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
 
-        // Initialize RecyclerView
-        recyclerView = mainLayout.recycleView;
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        recyclerView.setHasFixedSize(true);
-
-        // Firebase initialization
+        //init  Firebase
         auth = FirebaseAuth.getInstance();
         user = auth.getCurrentUser();
         database = FirebaseDatabase.getInstance();
         reference = database.getReference();
 
-        // Initialize lists and adapters
+        // init RecyclerView
+        recyclerView = mainLayout.recycleView;
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setHasFixedSize(true);
+
+        // init lists and adapters
         friendList = new ArrayList<>();
         friendRequestList = new ArrayList<>();
         contactAdapter = new ContactAdapter(this, friendList, 0, this);
-        friendRequestAdapter = new FriendRequestAdapter(this, friendRequestList);
+        friendRequestAdapter = new FriendRequestAdapter(this, friendRequestList, this);
         chatAdapter = new ChatAdapter(this, new ArrayList<>());
 
-        // restore state
+        // restore status
         if (savedInstanceState != null) {
             currentAdapter = savedInstanceState.getString(CURRENT_ADAPTER_KEY, "chatAdapter");
         }
 
         BottomNavigationView bottomNavigationView = mainLayout.bottomNavigation;
         bottomNavigationView.setOnItemSelectedListener(item -> {
-            int itemId = item.getItemId();
-
-            if (itemId == R.id.action_chat) {
+            if (item.getItemId() == R.id.action_chat) {
                 currentAdapter = "chatAdapter";
                 loadChatUsers();
                 return true;
-            } else if (itemId == R.id.action_contact) {
+            } else if (item.getItemId() == R.id.action_contact) {
                 currentAdapter = "contactAdapter";
                 loadFriendRequestsAndContacts();
                 return true;
-            } else if (itemId == R.id.action_profile) {
+            } else if (item.getItemId() == R.id.action_profile) {
                 Intent intent = new Intent(MainActivity.this, ProfileActivity.class);
                 startActivity(intent);
                 return true;
             }
-
             return false;
         });
 
-        // load the current adapter
+        // load current adapter
         if ("chatAdapter".equals(currentAdapter)) {
             loadChatUsers();
         } else if ("contactAdapter".equals(currentAdapter)) {
             loadFriendRequestsAndContacts();
-        } else if ("friendRequestAdapter".equals(currentAdapter)) {
-            switchToFriendRequests();
         }
+
+        // backend message check schedule
+        Constraints constraints = new Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .setRequiresBatteryNotLow(true)
+                .build();
+
+        PeriodicWorkRequest workRequest = new PeriodicWorkRequest.Builder(
+                MessageChecker.class, 5, TimeUnit.MINUTES)
+                .setConstraints(constraints)
+                .build();
+
+        WorkManager.getInstance(this).enqueue(workRequest);
+
+
+        if (user != null) {
+            listenForNewMessages(user.getUid());
+        }
+    }
+
+    // listen for new message at front end and send notification
+    private void listenForNewMessages(String userId) {
+        reference.child("Messages").addChildEventListener(new ChildEventListener() {
+            @Override
+            public void onChildAdded(@NonNull DataSnapshot snapshot, String previousChildName) {
+                checkForUnreadMessages(snapshot, userId);
+            }
+
+            @Override
+            public void onChildChanged(@NonNull DataSnapshot snapshot, String previousChildName) {
+                checkForUnreadMessages(snapshot, userId);
+            }
+
+            @Override
+            public void onChildRemoved(@NonNull DataSnapshot snapshot) { }
+
+            @Override
+            public void onChildMoved(@NonNull DataSnapshot snapshot, String previousChildName) { }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) { }
+        });
+    }
+
+    // check unread messages and send notification
+    private void checkForUnreadMessages(DataSnapshot snapshot, String userId) {
+        int unreadMessageCount = 0;
+
+        for (DataSnapshot messageSnapshot : snapshot.child("messages").getChildren()) {
+            String toUid = messageSnapshot.child("to").getValue(String.class);
+            Boolean isRead = messageSnapshot.child("isRead").getValue(Boolean.class);
+
+            if (toUid != null && toUid.equals(userId) && isRead != null && !isRead) {
+                unreadMessageCount++;
+            }
+        }
+
+        if (unreadMessageCount > 0) {
+            sendNotification(unreadMessageCount);
+        }
+    }
+
+    // send local notification
+    private void sendNotification(int unreadMessageCount) {
+        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Message Notifications",
+                    NotificationManager.IMPORTANCE_HIGH);
+            notificationManager.createNotificationChannel(channel);
+        }
+
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent,
+                PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE);
+
+        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(R.drawable.logo)
+                .setContentTitle("You have " + unreadMessageCount + " unread messages")
+                .setContentText("Check your messages.")
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent);
+
+        notificationManager.notify(1, notificationBuilder.build());
     }
 
     @Override
     protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
-        // save the current adapter
         outState.putString(CURRENT_ADAPTER_KEY, currentAdapter);
     }
 
@@ -116,21 +211,15 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
     @Override
     protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
-        // restore current adapter
         currentAdapter = savedInstanceState.getString(CURRENT_ADAPTER_KEY, "chatAdapter");
 
-        // restore the adapter based on saved state
         if ("chatAdapter".equals(currentAdapter)) {
             loadChatUsers();
         } else if ("contactAdapter".equals(currentAdapter)) {
-            // update the data
-            contactAdapter.notifyDataSetChanged();
-        } else if ("friendRequestAdapter".equals(currentAdapter)) {
-            switchToFriendRequests();
+            loadFriendRequestsAndContacts();
         }
     }
 
-    // load the users current user chatting with
     private void loadChatUsers() {
         List<User> chatUserList = new ArrayList<>();
         String currentUserId = auth.getCurrentUser().getUid();
@@ -140,7 +229,6 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 for (DataSnapshot messageSnapshot : snapshot.getChildren()) {
                     String messageKey = messageSnapshot.getKey();
-
                     if (messageKey != null && messageKey.contains(currentUserId)) {
                         String[] uids = messageKey.split("_");
                         String chattingPartnerUid = uids[0].equals(currentUserId) ? uids[1] : uids[0];
@@ -151,8 +239,7 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
                                 User chatUser = userSnapshot.getValue(User.class);
                                 if (chatUser != null) {
                                     chatUser.setId(userSnapshot.getKey());
-                                    String imageUrl = userSnapshot.child("image").getValue(String.class);
-                                    chatUser.setImage(imageUrl);
+                                    chatUser.setImage(userSnapshot.child("image").getValue(String.class));
 
                                     chatUserList.add(chatUser);
                                     chatAdapter.notifyDataSetChanged();
@@ -160,23 +247,18 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
                             }
 
                             @Override
-                            public void onCancelled(@NonNull DatabaseError error) {
-                                // Handle error
-                            }
+                            public void onCancelled(@NonNull DatabaseError error) { }
                         });
                     }
                 }
 
-                // switch to ChatAdapter
                 chatAdapter = new ChatAdapter(MainActivity.this, chatUserList);
                 recyclerView.setAdapter(chatAdapter);
                 chatAdapter.notifyDataSetChanged();
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                // Handle error
-            }
+            public void onCancelled(@NonNull DatabaseError error) { }
         });
     }
 
@@ -186,7 +268,6 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
     }
 
     private void loadContactData() {
-        // Clear the list to avoid repeated loading
         friendList.clear();
 
         String currentUserId = auth.getCurrentUser().getUid();
@@ -205,32 +286,22 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
                             User friend = userSnapshot.getValue(User.class);
                             if (friend != null) {
                                 friend.setId(userSnapshot.getKey());
-                                String imageUrl = userSnapshot.child("image").getValue(String.class);
-                                friend.setImage(imageUrl);
-
-                                // Add new friend to list
+                                friend.setImage(userSnapshot.child("image").getValue(String.class));
                                 friendList.add(friend);
-
-                                // Make sure you only update the data instead of recreating the adapter
                                 contactAdapter.notifyDataSetChanged();
                             }
                         }
 
                         @Override
-                        public void onCancelled(@NonNull DatabaseError error) {
-                            // Handle error
-                        }
+                        public void onCancelled(@NonNull DatabaseError error) { }
                     });
                 }
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                // Handle error
-            }
+            public void onCancelled(@NonNull DatabaseError error) { }
         });
 
-        // 这里不需要重新创建适配器，只需要刷新现有的适配器数据
         recyclerView.setAdapter(contactAdapter);
     }
 
@@ -259,9 +330,7 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                // Handle error
-            }
+            public void onCancelled(@NonNull DatabaseError error) { }
         });
     }
 
@@ -274,7 +343,7 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
         String currentUserId = auth.getCurrentUser().getUid();
         DatabaseReference requestRef = reference.child("FriendRequest").child(currentUserId);
 
-        requestRef.addValueEventListener(new ValueEventListener() {
+        requestRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 friendRequestList.clear();
@@ -291,10 +360,13 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                // Handle error
-            }
+            public void onCancelled(@NonNull DatabaseError error) { }
         });
+    }
+
+    @Override
+    public void onFriendRequestAccepted() {
+        loadFriendRequestsAndContacts();
     }
 
     @Override

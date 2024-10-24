@@ -163,26 +163,68 @@ public class AddFriendActivity extends AppCompatActivity {
         }
 
         String currentUserId = auth.getCurrentUser().getUid();
-        DatabaseReference requestRef = reference.child("FriendRequest").child(searchedUserId);
+        DatabaseReference currentUserFriendsRef = reference.child("Users").child(currentUserId).child("Friends");
 
-        // check if the request exists
-        requestRef.orderByChild("from").equalTo(currentUserId).addListenerForSingleValueEvent(new ValueEventListener() {
+        // check if the searched user already in the friend list
+        currentUserFriendsRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                if (snapshot.exists()) {
-                    // ensure no duplicate request
-                    Toast.makeText(AddFriendActivity.this, "Friend request already sent.", Toast.LENGTH_SHORT).show();
+                if (snapshot.hasChild(searchedUserId)) {
+                    // if the user is already in the friend list, show error message
+                    Toast.makeText(AddFriendActivity.this, "The user is your friend already.", Toast.LENGTH_SHORT).show();
                 } else {
-                    // send new request if no request found
-                    Map<String, Object> requestMap = new HashMap<>();
-                    requestMap.put("from", currentUserId);
-                    requestMap.put("status", "waiting");
+                    // if not existing friend, check if the request is already sent
+                    DatabaseReference requestRef = reference.child("FriendRequest").child(searchedUserId);
 
-                    requestRef.push().setValue(requestMap).addOnCompleteListener(task -> {
-                        if (task.isSuccessful()) {
-                            Toast.makeText(AddFriendActivity.this, "Friend request sent!", Toast.LENGTH_SHORT).show();
-                        } else {
-                            Toast.makeText(AddFriendActivity.this, "Failed to send request. Try again.", Toast.LENGTH_SHORT).show();
+                    requestRef.orderByChild("from").equalTo(currentUserId).addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(@NonNull DataSnapshot snapshot) {
+                            if (snapshot.exists()) {
+                                // check the request status
+                                for (DataSnapshot requestSnapshot : snapshot.getChildren()) {
+                                    String status = requestSnapshot.child("status").getValue(String.class);
+
+                                    if ("waiting".equals(status)) {
+                                        Toast.makeText(AddFriendActivity.this, "Friend request already sent and pending.", Toast.LENGTH_SHORT).show();
+                                        return;
+                                    } else if ("accepted".equals(status)) {
+                                        Toast.makeText(AddFriendActivity.this, "This user has already accepted your request.", Toast.LENGTH_SHORT).show();
+                                        return;
+                                    } else if ("declined".equals(status)) {
+                                        // resend request if the previous request is declined
+                                        Map<String, Object> requestMap = new HashMap<>();
+                                        requestMap.put("from", currentUserId);
+                                        requestMap.put("status", "waiting");
+
+                                        requestSnapshot.getRef().setValue(requestMap).addOnCompleteListener(task -> {
+                                            if (task.isSuccessful()) {
+                                                Toast.makeText(AddFriendActivity.this, "Friend request re-sent!", Toast.LENGTH_SHORT).show();
+                                            } else {
+                                                Toast.makeText(AddFriendActivity.this, "Failed to send request. Try again.", Toast.LENGTH_SHORT).show();
+                                            }
+                                        });
+                                        return;
+                                    }
+                                }
+                            } else {
+                                // send new friend request
+                                Map<String, Object> requestMap = new HashMap<>();
+                                requestMap.put("from", currentUserId);
+                                requestMap.put("status", "waiting");
+
+                                requestRef.push().setValue(requestMap).addOnCompleteListener(task -> {
+                                    if (task.isSuccessful()) {
+                                        Toast.makeText(AddFriendActivity.this, "Friend request sent!", Toast.LENGTH_SHORT).show();
+                                    } else {
+                                        Toast.makeText(AddFriendActivity.this, "Failed to send request. Try again.", Toast.LENGTH_SHORT).show();
+                                    }
+                                });
+                            }
+                        }
+
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError error) {
+                            Toast.makeText(AddFriendActivity.this, "Failed to check friend request status.", Toast.LENGTH_SHORT).show();
                         }
                     });
                 }
@@ -190,10 +232,11 @@ public class AddFriendActivity extends AppCompatActivity {
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                Toast.makeText(AddFriendActivity.this, "Failed to check friend request status.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(AddFriendActivity.this, "Failed to check friend list.", Toast.LENGTH_SHORT).show();
             }
         });
     }
+
 
     private void clearUserInfo() {
         hideUserInfo();
