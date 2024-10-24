@@ -1,6 +1,10 @@
 package com.hanz.youmetalk;
 
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.media.MediaPlayer;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -11,10 +15,12 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -101,12 +107,27 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
             if (!message.isEmpty()) {
                 sendMessage(message);
                 editTextMessage.setText("");
+                playNotificationSound(R.raw.send_message); // Play sound effect
             }
         });
 
         conversationId = getConversationId(currentUserId, friendId);
 
         loadMessages();
+
+
+    }
+
+
+
+
+
+
+
+    // Play send message sound effect
+    private void playNotificationSound(int sound) {
+        MediaPlayer mediaPlayer = MediaPlayer.create(this, sound);
+        mediaPlayer.start();
     }
 
     private String getConversationId(String userId1, String userId2) {
@@ -129,18 +150,22 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
                                 list.add(model);
                                 messageAdapter.notifyDataSetChanged();
                                 recyclerViewMessageArea.scrollToPosition(list.size() - 1);
+
                             }
                         }
                     }
 
                     @Override
-                    public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {}
+                    public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                    }
 
                     @Override
-                    public void onChildRemoved(@NonNull DataSnapshot snapshot) {}
+                    public void onChildRemoved(@NonNull DataSnapshot snapshot) {
+                    }
 
                     @Override
-                    public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {}
+                    public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                    }
 
                     @Override
                     public void onCancelled(@NonNull DatabaseError error) {
