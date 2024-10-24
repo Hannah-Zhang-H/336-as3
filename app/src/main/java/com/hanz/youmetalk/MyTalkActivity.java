@@ -1,7 +1,4 @@
 package com.hanz.youmetalk;
-
-import android.app.AlertDialog;
-import android.content.Intent;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.util.Log;
@@ -11,8 +8,10 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -38,18 +37,20 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
 
     private ActivityMyTalkBinding myTalkLayout;
     private RecyclerView recyclerViewMessageArea;
+    private ImageView imageViewBack;
+    private TextView textViewChatFriendName;
     private EditText editTextMessage;
     private FloatingActionButton fab;
 
-    private String currentUserId, friendId, friendName, conversationId;
+    private String currentUserId, friendId, friendName;
+    private String conversationId;
 
+    private FirebaseDatabase database;
     private DatabaseReference reference;
     private FirebaseUser firebaseUser;
 
     private MessageAdapter messageAdapter;
     private List<Model> list;
-
-    private MediaPlayer mediaPlayer; // MediaPlayer for sound effects
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,15 +67,15 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
         }
         currentUserId = firebaseUser.getUid();
 
-        // Initialize UI components
         recyclerViewMessageArea = myTalkLayout.recyclerViewTalkArea;
         recyclerViewMessageArea.setLayoutManager(new LinearLayoutManager(this));
         list = new ArrayList<>();
 
+        imageViewBack = myTalkLayout.imageViewBack;
+        textViewChatFriendName = myTalkLayout.textViewChatFriendName;
         editTextMessage = myTalkLayout.editTextMessage;
         fab = myTalkLayout.fab;
 
-        // Get friend details from intent
         friendId = getIntent().getStringExtra("friendId");
         friendName = getIntent().getStringExtra("friendName");
 
@@ -84,60 +85,49 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
             return;
         }
 
-        reference = FirebaseDatabase.getInstance().getReference();
-        conversationId = getConversationId(currentUserId, friendId);  // Get conversation ID
-        loadMessages();
+        database = FirebaseDatabase.getInstance();
+        reference = database.getReference();
 
-        messageAdapter = new MessageAdapter(list, currentUserId, this); // Pass listener for long clicks
+        textViewChatFriendName.setText(friendName);
+
+        messageAdapter = new MessageAdapter(list, currentUserId, this); // Pass the listener
         recyclerViewMessageArea.setAdapter(messageAdapter);
 
-        // Set up the message send button (floating action button)
+        // Set up back button functionality
+        imageViewBack.setOnClickListener(view -> onBackPressed());
+
         fab.setOnClickListener(view -> {
             String message = editTextMessage.getText().toString().trim();
             if (!message.isEmpty()) {
                 sendMessage(message);
                 editTextMessage.setText("");
-                playNotificationSound(R.raw.send_message); // Play sound when message is sent
+                playNotificationSound(R.raw.send_message); // Play sound effect
             }
         });
 
-        // Set up the back button (in the toolbar or navigation)
-        myTalkLayout.imageViewBack.setOnClickListener(v -> onBackPressed());  // Handle toolbar back button
+        conversationId = getConversationId(currentUserId, friendId);
+        loadMessages();
+
+        // Set up back press handling
+        OnBackPressedCallback callback = new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                finish(); // Finish the activity
+            }
+        };
+        getOnBackPressedDispatcher().addCallback(this, callback);
     }
 
-    // Override the default back button behavior to navigate to the MainActivity
-    @Override
-    public void onBackPressed() {
-        super.onBackPressed();
-        Intent intent = new Intent(this, MainActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);  // Prevent creating new MainActivity instances
-        startActivity(intent);
-        finish();  // Close current activity
-    }
-
-    // Ensure MediaPlayer resources are properly released
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (mediaPlayer != null) {
-            mediaPlayer.release();
-        }
-    }
-
-    // Play a sound effect
+    // Play send message sound effect
     private void playNotificationSound(int sound) {
-        if (mediaPlayer == null) {
-            mediaPlayer = MediaPlayer.create(this, sound);
-        }
+        MediaPlayer mediaPlayer = MediaPlayer.create(this, sound);
         mediaPlayer.start();
     }
 
-    // Create a unique conversation ID between two users
     private String getConversationId(String userId1, String userId2) {
         return userId1.compareTo(userId2) > 0 ? userId1 + "_" + userId2 : userId2 + "_" + userId1;
     }
 
-    // Load messages and listen for new messages using ChildEventListener
     private void loadMessages() {
         reference.child("Messages").child(conversationId).child("messages")
                 .addChildEventListener(new ChildEventListener() {
@@ -145,16 +135,25 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
                     public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
                         Model model = snapshot.getValue(Model.class);
                         if (model != null) {
-                            // Filter soft deleted messages
+                            // Check soft deletion
                             if (model.getDeleted_for() == null || !model.getDeleted_for().contains(currentUserId)) {
-                                model.setMessageId(snapshot.getKey());  // Set the message ID
+                                model.setMessageId(snapshot.getKey()); // Set message ID
                                 list.add(model);
-                                messageAdapter.notifyDataSetChanged();  // Notify adapter of new data
-                                recyclerViewMessageArea.scrollToPosition(list.size() - 1);  // Scroll to bottom
+                                messageAdapter.notifyDataSetChanged();
+                                recyclerViewMessageArea.scrollToPosition(list.size() - 1);
 
-                                // If the message is from the friend and not read, mark it as read
+                                // Check if the message is from friend
                                 if (model.getFrom().equals(friendId) && !model.isRead()) {
-                                    markMessageAsRead(snapshot.getKey());
+                                    // Update isRead to true
+                                    reference.child("Messages").child(conversationId).child("messages")
+                                            .child(snapshot.getKey()).child("isRead").setValue(true)
+                                            .addOnCompleteListener(task -> {
+                                                if (task.isSuccessful()) {
+                                                    Log.d("MessageStatus", "Message marked as read");
+                                                } else {
+                                                    Log.e("MessageStatus", "Failed to mark message as read");
+                                                }
+                                            });
                                 }
                             }
                         }
@@ -176,20 +175,6 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
                 });
     }
 
-    // Mark a message as read in the Firebase database
-    private void markMessageAsRead(String messageId) {
-        reference.child("Messages").child(conversationId).child("messages").child(messageId)
-                .child("isRead").setValue(true)
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        Log.d("MessageStatus", "Message marked as read");
-                    } else {
-                        Log.e("MessageStatus", "Failed to mark message as read");
-                    }
-                });
-    }
-
-    // Send a message and save it in Firebase
     private void sendMessage(String message) {
         String key = reference.child("Messages").child(conversationId).child("messages").push().getKey();
         if (key != null) {
@@ -211,22 +196,23 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
         }
     }
 
-    // Handle long clicks on messages for deleting
     @Override
     public void onMessageLongClick(String messageId, View anchorView) {
         showCustomDialog(messageId);
     }
 
-    // Show a dialog to confirm the message deletion
     private void showCustomDialog(String messageId) {
         String[] options = {"Delete"};
-        int[] icons = {R.drawable.ic_delete};
 
-        // Create an adapter for the dialog
+        int[] icons = {R.drawable.ic_delete}; // Delete icon
+
+        // Instantiate IconTextAdapter
         IconTextAdapter adapter = new IconTextAdapter(this, options, icons);
+
+        // Create the dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setAdapter(adapter, (dialog, which) -> {
-            if (which == 0) {  // If the user selects "Delete"
+            if (which == 0) { // If user clicks delete
                 deleteMessage(messageId);
             }
         });
@@ -235,46 +221,42 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
         dialog.show();
     }
 
-    // Soft delete a message by adding the current user to the "deleted_for" field
     private void deleteMessage(String messageId) {
-        reference.child("Messages").child(conversationId).child("messages").child(messageId)
-                .addListenerForSingleValueEvent(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                        Model model = dataSnapshot.getValue(Model.class);
-                        if (model != null) {
-                            List<String> deletedFor = model.getDeleted_for() != null ? model.getDeleted_for() : new ArrayList<>();
-                            if (!deletedFor.contains(currentUserId)) {
-                                deletedFor.add(currentUserId);  // Add current user to soft delete list
-                            }
+        reference.child("Messages").child(conversationId).child("messages").child(messageId).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                Model model = dataSnapshot.getValue(Model.class);
 
-                            reference.child("Messages").child(conversationId).child("messages").child(messageId)
-                                    .child("deleted_for").setValue(deletedFor)
-                                    .addOnCompleteListener(task -> {
-                                        if (task.isSuccessful()) {
-                                            removeMessageFromList(messageId);  // Update the list and UI
-                                        } else {
-                                            Toast.makeText(MyTalkActivity.this, "Error deleting message", Toast.LENGTH_SHORT).show();
+                if (model != null) {
+                    List<String> deletedFor = model.getDeleted_for() != null ? model.getDeleted_for() : new ArrayList<>();
+
+                    if (!deletedFor.contains(currentUserId)) {
+                        deletedFor.add(currentUserId); // Add currentUser to soft delete list
+                    }
+
+                    // Update database
+                    reference.child("Messages").child(conversationId).child("messages").child(messageId).child("deleted_for").setValue(deletedFor)
+                            .addOnCompleteListener(task -> {
+                                if (task.isSuccessful()) {
+                                    // Delete the message and update the view
+                                    for (int i = 0; i < list.size(); i++) {
+                                        if (list.get(i).getMessageId().equals(messageId)) {
+                                            list.remove(i); // Remove the message
+                                            messageAdapter.notifyItemRemoved(i); // Update RecyclerView
+                                            break;
                                         }
-                                    });
-                        }
-                    }
-
-                    @Override
-                    public void onCancelled(@NonNull DatabaseError databaseError) {
-                        Log.e("Firebase", "Error deleting message", databaseError.toException());
-                    }
-                });
-    }
-
-    // Remove the deleted message from the list and notify the adapter
-    private void removeMessageFromList(String messageId) {
-        for (int i = 0; i < list.size(); i++) {
-            if (list.get(i).getMessageId().equals(messageId)) {
-                list.remove(i);  // Remove the message from the list
-                messageAdapter.notifyItemRemoved(i);  // Notify the adapter
-                break;
+                                    }
+                                } else {
+                                    Toast.makeText(MyTalkActivity.this, "Error deleting message", Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                }
             }
-        }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                Log.e("Firebase", "Error deleting message", databaseError.toException());
+            }
+        });
     }
 }
