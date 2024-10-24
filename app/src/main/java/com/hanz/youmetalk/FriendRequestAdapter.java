@@ -161,7 +161,7 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
         });
     }
 
-    // 重新加载好友请求列表
+    // reload the friend request list
     private void reloadFriendRequests() {
         String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
         DatabaseReference requestRef = FirebaseDatabase.getInstance().getReference().child("FriendRequest").child(currentUserId);
