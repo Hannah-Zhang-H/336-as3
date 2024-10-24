@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".ProfileActivity">
+
+    <de.hdodenhof.circleimageview.CircleImageView
+        android:id="@+id/imageViewFriendCircleProfileFriend"
+        android:layout_width="150dp"
+        android:layout_height="150dp"
+        android:layout_marginTop="50dp"
+        android:layout_marginBottom="25dp"
+        android:background="@drawable/account"
+        app:layout_constraintBottom_toTopOf="@+id/textInputLayoutFriendName"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+
+    <!-- YouMeID input -->
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/textInputLayoutFriendName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:layout_marginBottom="5dp"
+        android:gravity="center"
+        app:boxBackgroundMode="filled"
+        app:layout_constraintBottom_toTopOf="@+id/textInputLayoutFriendYouMeID"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/imageViewFriendCircleProfileFriend">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/editTextFriendNameUpdate"
+            android:layout_width="260dp"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:hint="@string/user_name"
+            android:inputType="text|textPersonName" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/textInputLayoutFriendYouMeID"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:layout_marginBottom="10dp"
+        android:gravity="center"
+        app:boxBackgroundMode="filled"
+        app:layout_constraintBottom_toTopOf="@+id/buttonDeleteFriend"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textInputLayoutFriendName">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/editTextYouMeIdUpdateFriend"
+            android:layout_width="260dp"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:hint="YouMeID"
+            android:inputType="text|textPersonName"
+            tools:ignore="MissingConstraints"
+            tools:layout_editor_absoluteX="43dp"
+            tools:layout_editor_absoluteY="470dp" />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <Button
+        android:id="@+id/buttonDeleteFriend"
+        android:layout_width="237dp"
+        android:layout_height="52dp"
+        android:layout_marginTop="26dp"
+        android:backgroundTint="@color/pink_colour"
+        android:text="Delete  Friend"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textInputLayoutFriendYouMeID" />
+
+
+    <ImageView
+        android:id="@+id/imageView5"
+        android:layout_width="325dp"
+        android:layout_height="189dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="18dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="3dp"
+        android:background="@drawable/friend_profile_pic"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/buttonDeleteFriend" />
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>

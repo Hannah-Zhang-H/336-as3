@@ -1,5 +1,9 @@
 package com.hanz.youmetalk;
 
+import static com.hanz.youmetalk.MainActivity.REQUEST_CODE_DELETE_FRIEND;
+
+import android.app.Activity;
+import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -62,6 +66,9 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 if (dataSnapshot.exists()) {
                     String imageUrl = dataSnapshot.child("image").getValue(String.class);
+                    String friendName = dataSnapshot.child("userName").getValue(String.class);
+                    String friendYouMeId = dataSnapshot.child("youMeId").getValue(String.class);
+
                     // load profile image
                     if (imageUrl != null && !imageUrl.isEmpty()) {
                         Glide.with(holder.itemView.getContext())
@@ -72,6 +79,22 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                     } else {
                         holder.profileImage.setImageResource(R.drawable.profile_placeholder);
                     }
+
+                    // Click the friend image, go to friend profile activity, users can choose to delete the friend
+                    // Set click listener for profile image (only for received messages)
+                    if (!senderId.equals(currentUserId)) {
+                        holder.profileImage.setOnClickListener(v -> {
+                            // Intent to navigate to FriendProfileActivity
+                            Intent intent = new Intent(holder.itemView.getContext(), FriendProfileActivity.class);
+                            intent.putExtra("friendId", senderId);  // Pass the friend's ID
+                            intent.putExtra("friendName", friendName);  // Pass the friend's name
+                            intent.putExtra("friendImage", imageUrl);  // Pass the friend's profile image URL
+                            intent.putExtra("friendYouMeId", friendYouMeId);  // Pass the friend's profile image URL
+                            ((Activity) holder.itemView.getContext()).startActivityForResult(intent, REQUEST_CODE_DELETE_FRIEND);  // Use the request code for result
+                        });
+
+                    }
+
                 }
             }
 
@@ -88,6 +111,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             }
             return true;
         });
+
+
     }
 
     @Override
