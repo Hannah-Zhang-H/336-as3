@@ -1,6 +1,7 @@
 package com.hanz.youmetalk;
 
 import android.content.Intent;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -101,12 +102,19 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
             if (!message.isEmpty()) {
                 sendMessage(message);
                 editTextMessage.setText("");
+                playNotificationSound(); // Play sound effect
             }
         });
 
         conversationId = getConversationId(currentUserId, friendId);
 
         loadMessages();
+    }
+
+    // Play send message sound effect
+    private void playNotificationSound() {
+        MediaPlayer mediaPlayer = MediaPlayer.create(this, R.raw.send_message);
+        mediaPlayer.start();
     }
 
     private String getConversationId(String userId1, String userId2) {
