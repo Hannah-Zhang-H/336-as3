@@ -1,10 +1,26 @@
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".AddFriendActivity">
+    tools:context=".AddFriendActivity"
+    >
+
+    <!-- ImageView for background at the bottom -->
+
+    <ImageView
+        android:id="@+id/bottomImageView"
+        android:layout_width="293dp"
+        android:layout_height="194dp"
+        android:layout_marginTop="50dp"
+
+        android:src="@drawable/find_friend"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.366"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/buttonAddFriend"
+        app:layout_constraintVertical_bias="0.0" />
 
     <ImageView
         android:id="@+id/imageViewBack"
@@ -12,27 +28,27 @@
         android:layout_height="35dp"
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
-        app:srcCompat="@android:drawable/ic_menu_revert"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:srcCompat="@android:drawable/ic_menu_revert" />
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/textInputLayoutYouMeID"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        app:layout_constraintTop_toBottomOf="@id/imageViewBack"
-        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="20dp"
+        android:layout_marginEnd="8dp"
         app:layout_constraintEnd_toStartOf="@+id/buttonSearch"
         app:layout_constraintHorizontal_chainStyle="packed"
-        android:layout_marginTop="20dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="8dp"
-        android:hint="Enter YouMeID">
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/imageViewBack">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/editTextYouMeID"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:hint="@string/enter_friend_s_youmeid"
             android:inputType="text" />
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -40,76 +56,78 @@
         android:id="@+id/buttonSearch"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Search"
-        app:layout_constraintTop_toTopOf="@id/textInputLayoutYouMeID"
+        android:layout_marginEnd="16dp"
+        android:text="@string/search"
         app:layout_constraintBottom_toBottomOf="@id/textInputLayoutYouMeID"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginEnd="16dp" />
+        app:layout_constraintTop_toTopOf="@id/textInputLayoutYouMeID" />
 
     <de.hdodenhof.circleimageview.CircleImageView
         android:id="@+id/imageViewProfile"
         android:layout_width="100dp"
         android:layout_height="100dp"
         android:layout_marginTop="32dp"
-        app:layout_constraintTop_toBottomOf="@id/textInputLayoutYouMeID"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5" />
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/textInputLayoutYouMeID" />
 
     <TextView
         android:id="@+id/labelUserName"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textStyle="bold"
-        android:text="User Name"
         android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/imageViewProfile"
-        app:layout_constraintStart_toStartOf="parent"
+        android:text="User Name"
+        android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5" />
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/imageViewProfile" />
 
     <TextView
         android:id="@+id/textViewUserName"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:contentDescription="User Name"
         android:layout_marginTop="8dp"
-        app:layout_constraintTop_toBottomOf="@id/labelUserName"
-        app:layout_constraintStart_toStartOf="parent"
+        android:contentDescription="User Name"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5" />
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/labelUserName" />
 
     <TextView
         android:id="@+id/labelYouMeID"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textStyle="bold"
-        android:text="YouMeID"
         android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/textViewUserName"
-        app:layout_constraintStart_toStartOf="parent"
+        android:text="YouMeID"
+        android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5" />
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/textViewUserName" />
 
     <TextView
         android:id="@+id/textViewYouMeID"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:contentDescription="YouMeID"
         android:layout_marginTop="8dp"
-        app:layout_constraintTop_toBottomOf="@id/labelYouMeID"
-        app:layout_constraintStart_toStartOf="parent"
+        android:contentDescription="YouMeID"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5" />
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/labelYouMeID" />
 
     <Button
         android:id="@+id/buttonAddFriend"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Add Friend"
         android:layout_marginTop="24dp"
-        app:layout_constraintTop_toBottomOf="@id/textViewYouMeID"
-        app:layout_constraintStart_toStartOf="parent"
+        android:text="Add Friend"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5" />
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/textViewYouMeID" />
+
+
 </androidx.constraintlayout.widget.ConstraintLayout>

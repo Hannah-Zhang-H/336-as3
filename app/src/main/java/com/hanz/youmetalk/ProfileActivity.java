@@ -1,11 +1,16 @@
 package com.hanz.youmetalk;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Button;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -31,10 +36,16 @@ import com.squareup.picasso.Picasso;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
 public class ProfileActivity extends AppCompatActivity {
+    // Initialize ExecutorService for background tasks
+    private ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private ProgressBar progressBar; // ProgressBar
+    private TextView progressText;  // ProgressBar text to remind the user
     private ActivityProfileBinding profileLayout;
     private CircleImageView imageViewProfile;
     private TextInputEditText editTextUserNameUpdate, editTextYouMeIdUpdate;
@@ -72,6 +83,8 @@ public class ProfileActivity extends AppCompatActivity {
         editTextUserNameUpdate = profileLayout.editTextUserNameUpdate;
         editTextYouMeIdUpdate = profileLayout.editTextYouMeIdUpdate;
         buttonUpdate = profileLayout.buttonUpdate;
+        progressBar = profileLayout.uploadProgressBarProfile;  // Initialize the ProgressBar
+        progressText = profileLayout.uploadProgressTextProfile; // Initialize the ProgressText
 
         // Initialize ActivityResultLauncher for image choosing
         imageChooserLauncher = registerForActivityResult(
@@ -154,11 +167,7 @@ public class ProfileActivity extends AppCompatActivity {
                     Toast.makeText(ProfileActivity.this, "YouMeID is already taken.", Toast.LENGTH_SHORT).show();
                 } else {
                     // Proceed with the update if YouMeID is unique
-                    try {
-                        updateProfile(userName, youMeId);
-                    } catch (FileNotFoundException e) {
-                        throw new RuntimeException(e);
-                    }
+                    updateProfile(userName, youMeId);
                 }
             }
 
@@ -169,8 +178,8 @@ public class ProfileActivity extends AppCompatActivity {
         });
     }
 
-    public void updateProfile(String userName, String youMeId) throws FileNotFoundException {
-        // Only update fields that have changed
+    @SuppressLint("SetTextI18n")
+    public void updateProfile(String userName, String youMeId) {
         if (!userName.equals(currentYouMeId)) {
             reference.child("Users").child(firebaseUser.getUid()).child("userName").setValue(userName);
         }
@@ -179,48 +188,47 @@ public class ProfileActivity extends AppCompatActivity {
             reference.child("Users").child(firebaseUser.getUid()).child("youMeId").setValue(youMeId);
         }
 
-        // Update image only if the user has selected a new one
         if (imageControl) {
-            try {
-                BitmapFactory.Options options = new BitmapFactory.Options();
-                options.inSampleSize = 4; // Compression rate
-                Bitmap bitmap = BitmapFactory.decodeStream(getContentResolver().openInputStream(imageUri), null, options);
+            progressBar.setVisibility(View.VISIBLE);
+            progressText.setVisibility(View.VISIBLE);
 
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 50, baos);
-                byte[] imageData = baos.toByteArray();
-
+            executorService.execute(() -> {
                 UUID randomID = UUID.randomUUID();
                 String imageName = "images/" + randomID + ".jpg";
                 StorageReference imageRef = storageReference.child(imageName);
 
-                imageRef.putBytes(imageData).addOnSuccessListener(taskSnapshot -> {
+                imageRef.putFile(imageUri).addOnProgressListener(taskSnapshot -> {
+                    double progress = (100.0 * taskSnapshot.getBytesTransferred()) / taskSnapshot.getTotalByteCount();
+                    runOnUiThread(() -> {
+                        progressBar.setProgress((int) progress);
+                        progressText.setText("Upload Progress: " + (int) progress + "%");
+                    });
+                }).addOnSuccessListener(taskSnapshot -> {
                     imageRef.getDownloadUrl().addOnSuccessListener(uri -> {
                         String filePath = uri.toString();
                         reference.child("Users").child(firebaseUser.getUid()).child("image").setValue(filePath)
-                                .addOnSuccessListener(unused -> {
+                                .addOnSuccessListener(unused -> runOnUiThread(() -> {
                                     Toast.makeText(ProfileActivity.this, "Profile updated successfully.", Toast.LENGTH_SHORT).show();
-                                    // Optionally, you can navigate back if successful
-                                })
-                                .addOnFailureListener(e -> {
+                                    progressBar.setVisibility(View.GONE);
+                                    progressText.setVisibility(View.GONE);
+                                }))
+                                .addOnFailureListener(e -> runOnUiThread(() -> {
                                     Toast.makeText(ProfileActivity.this, "Failed to update profile.", Toast.LENGTH_SHORT).show();
-                                    buttonUpdate.setEnabled(true);
-                                });
+                                    progressBar.setVisibility(View.GONE);
+                                    progressText.setVisibility(View.GONE);
+                                }));
                     });
-                }).addOnFailureListener(e -> {
+                }).addOnFailureListener(e -> runOnUiThread(() -> {
                     Toast.makeText(ProfileActivity.this, "Image upload failed.", Toast.LENGTH_SHORT).show();
-                    buttonUpdate.setEnabled(true);
-                });
-            } catch (Exception e) {
-                e.printStackTrace();
-                Toast.makeText(this, "Error processing image.", Toast.LENGTH_SHORT).show();
-                buttonUpdate.setEnabled(true);
-            }
+                    progressBar.setVisibility(View.GONE);
+                    progressText.setVisibility(View.GONE);
+                }));
+            });
         } else {
-            // Do not navigate back if no new image is selected and update is successful
             Toast.makeText(this, "Profile updated successfully.", Toast.LENGTH_SHORT).show();
         }
     }
+
 
     public void imageChooser() {
         Intent intent = new Intent();
