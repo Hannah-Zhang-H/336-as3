@@ -68,6 +68,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 String lastMessageContent = "";
                 long lastMessageTimestamp = 0;
+                boolean hasUnreadMessage = false;  // 用于追踪是否有未读消息
 
                 for (DataSnapshot messageSnapshot : snapshot.getChildren()) {
                     for (DataSnapshot messageDetailSnapshot : messageSnapshot.child("messages").getChildren()) {
@@ -75,56 +76,53 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
                         String toUid = messageDetailSnapshot.child("to").getValue(String.class);
                         String messageContent = messageDetailSnapshot.child("message").getValue(String.class);
                         Long timestamp = messageDetailSnapshot.child("timestamp").getValue(Long.class);
+                        Boolean isRead = messageDetailSnapshot.child("isRead").getValue(Boolean.class);  // 获取isRead状态
 
-                        if (fromUid == null || toUid == null || messageContent == null || timestamp == null) {
+                        if (fromUid == null || toUid == null || messageContent == null || timestamp == null || isRead == null) {
                             continue;
                         }
 
-                        // Check if the message involves the current user and the chat user
+                        // 检查消息是否涉及当前用户和聊天用户
                         if ((fromUid.equals(currentUserId) && toUid.equals(chatUser.getId())) ||
                                 (fromUid.equals(chatUser.getId()) && toUid.equals(currentUserId))) {
                             lastMessageContent = messageContent;
                             lastMessageTimestamp = timestamp;
+
+                            // 如果消息来自聊天用户且未读，标记为有未读消息
+                            if (fromUid.equals(chatUser.getId()) && !isRead) {
+                                hasUnreadMessage = true;
+                            }
                         }
                     }
                 }
 
-                // Display the last message content
+                // 显示最后一条消息的内容
                 if (!lastMessageContent.isEmpty()) {
                     holder.lastMessage.setText(lastMessageContent);
                 } else {
                     holder.lastMessage.setText("No messages yet");
                 }
 
-                // Display the timestamp if available
+                // 显示时间戳（如果有）
                 if (lastMessageTimestamp != 0) {
                     SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
                     String dateString = sdf.format(new Date(lastMessageTimestamp));
                     holder.messageDate.setText(dateString);
                 }
 
-                if (chatUser.getLastSeenMessageTimestamp() == 0) {
-                    // 用户还没有查看过这个对话
-                    // 使用默认颜色 (R.color.purple_500)
-                    holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.default_background));
+                // 如果有未读消息，更新背景颜色为“新消息”的颜色
+                if (hasUnreadMessage) {
+                    holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.new_message_background));
                 } else {
-                    // 用户之前查看过这个对话
-                    // 比较消息时间和用户上次查看消息的时间
-                    if (lastMessageTimestamp > chatUser.getLastSeenMessageTimestamp()) {
-                        // 有新消息
-                        holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.new_message_background));
-                    } else {
-                        // 没有新消息，使用默认背景颜色
-                        holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.default_background));
-                    }
+                    holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.default_background));
                 }
-
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 Log.e("ChatAdapter", "Error retrieving messages: " + error.getMessage());
             }
+
         });
 
         // Switch to MyTalkActivity when the card is clicked
