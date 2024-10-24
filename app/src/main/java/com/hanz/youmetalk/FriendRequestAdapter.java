@@ -23,10 +23,17 @@ import java.util.List;
 public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdapter.FriendRequestViewHolder> {
     private Context context;
     private List<FriendRequest> friendRequestList;
+    private FriendRequestListener listener;
 
-    public FriendRequestAdapter(Context context, List<FriendRequest> friendRequestList) {
+    // Define interface to notify listener about the request acceptance
+    public interface FriendRequestListener {
+        void onFriendRequestAccepted();
+    }
+
+    public FriendRequestAdapter(Context context, List<FriendRequest> friendRequestList, FriendRequestListener listener) {
         this.context = context;
         this.friendRequestList = friendRequestList;
+        this.listener = listener;
     }
 
     @NonNull
@@ -40,19 +47,19 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
     public void onBindViewHolder(@NonNull FriendRequestViewHolder holder, int position) {
         FriendRequest request = friendRequestList.get(position);
 
-        // only show the request has waiting status
+        // only show the request that has a "waiting" status
         if (!"waiting".equals(request.getStatus())) {
             holder.itemView.setVisibility(View.GONE);
             return;
         }
 
-        // get the Uid for the user who send the request
+        // get the UID for the user who sent the request
         String fromUid = request.getFrom();
         if (fromUid == null) {
             return;
         }
 
-        // fetch the user date by using Uid
+        // fetch the user data by using UID
         DatabaseReference userRef = FirebaseDatabase.getInstance().getReference("Users").child(fromUid);
         userRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
@@ -79,7 +86,7 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
 
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
-
+                // Handle error
             }
         });
 
@@ -112,7 +119,6 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
         }
     }
 
-    // reload the view after accept the request
     private void acceptFriendRequest(FriendRequest request) {
         String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
         if (currentUserId == null || request.getFrom() == null) {
@@ -121,27 +127,53 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
 
         DatabaseReference userRef = FirebaseDatabase.getInstance().getReference().child("Users").child(currentUserId).child("Friends");
 
-        //Update the friend field and friendrequest table
+        // Update the friend field and friend request table
         userRef.child(request.getFrom()).setValue(true).addOnCompleteListener(task -> {
             if (task.isSuccessful()) {
                 DatabaseReference senderRef = FirebaseDatabase.getInstance().getReference().child("Users").child(request.getFrom()).child("Friends");
                 senderRef.child(currentUserId).setValue(true).addOnCompleteListener(senderTask -> {
                     if (senderTask.isSuccessful()) {
-                        updateRequestStatusAndReload(request, "accepted");
-
-
-
+                        updateRequestStatusAndNotify(request, "accepted");
                     }
                 });
             }
         });
     }
 
-    // reload the view after decline the request
+    // Notify the listener and update the status
+    private void updateRequestStatusAndNotify(FriendRequest request, String status) {
+        if (request.getRequestId() == null) {
+            return;
+        }
+
+        DatabaseReference requestRef = FirebaseDatabase.getInstance().getReference()
+                .child("FriendRequest")
+                .child(FirebaseAuth.getInstance().getCurrentUser().getUid())
+                .child(request.getRequestId());
+
+        requestRef.child("status").setValue(status).addOnCompleteListener(task -> {
+            if (task.isSuccessful()) {
+                // Show success message
+                Toast.makeText(context, "Friend successfully added!", Toast.LENGTH_SHORT).show();
+
+                // Notify the listener to switch adapter
+                if (listener != null) {
+                    listener.onFriendRequestAccepted();  // Notify the activity/fragment to switch adapter
+                }
+            }
+        });
+    }
+
+    // Reload the view after declining the request
     private void declineFriendRequest(FriendRequest request) {
         updateRequestStatusAndReload(request, "declined");
         // Remind the user that they have declined the adding new friend request
         Toast.makeText(context, R.string.decline_add_friend, Toast.LENGTH_SHORT).show();
+
+        // Notify the listener to switch back to contact list after declining the request
+        if (listener != null) {
+            listener.onFriendRequestAccepted();  // Reuse the same method to switch adapter
+        }
     }
 
     private void updateRequestStatusAndReload(FriendRequest request, String status) {
@@ -161,7 +193,7 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
         });
     }
 
-    // reload the friend request list
+    // Reload the friend request list
     private void reloadFriendRequests() {
         String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
         DatabaseReference requestRef = FirebaseDatabase.getInstance().getReference().child("FriendRequest").child(currentUserId);
@@ -184,7 +216,7 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-
+                // Handle error
             }
         });
     }

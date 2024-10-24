@@ -23,7 +23,8 @@ import com.hanz.youmetalk.databinding.ActivityMainBinding;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements ContactAdapter.OnFriendRequestCardClickListener {
+public class MainActivity extends AppCompatActivity
+        implements ContactAdapter.OnFriendRequestCardClickListener, FriendRequestAdapter.FriendRequestListener {
 
     FirebaseAuth auth;
     RecyclerView recyclerView;
@@ -66,7 +67,7 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
         friendList = new ArrayList<>();
         friendRequestList = new ArrayList<>();
         contactAdapter = new ContactAdapter(this, friendList, 0, this);
-        friendRequestAdapter = new FriendRequestAdapter(this, friendRequestList);
+        friendRequestAdapter = new FriendRequestAdapter(this, friendRequestList, this);
         chatAdapter = new ChatAdapter(this, new ArrayList<>());
 
         // restore state
@@ -100,8 +101,6 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
             loadChatUsers();
         } else if ("contactAdapter".equals(currentAdapter)) {
             loadFriendRequestsAndContacts();
-        } else if ("friendRequestAdapter".equals(currentAdapter)) {
-            switchToFriendRequests();
         }
     }
 
@@ -123,10 +122,7 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
         if ("chatAdapter".equals(currentAdapter)) {
             loadChatUsers();
         } else if ("contactAdapter".equals(currentAdapter)) {
-            // update the data
-            contactAdapter.notifyDataSetChanged();
-        } else if ("friendRequestAdapter".equals(currentAdapter)) {
-            switchToFriendRequests();
+            loadFriendRequestsAndContacts();
         }
     }
 
@@ -230,7 +226,7 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
             }
         });
 
-        // 这里不需要重新创建适配器，只需要刷新现有的适配器数据
+        // refresh the current adapter
         recyclerView.setAdapter(contactAdapter);
     }
 
@@ -274,7 +270,7 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
         String currentUserId = auth.getCurrentUser().getUid();
         DatabaseReference requestRef = reference.child("FriendRequest").child(currentUserId);
 
-        requestRef.addValueEventListener(new ValueEventListener() {
+        requestRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 friendRequestList.clear();
@@ -295,6 +291,13 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
                 // Handle error
             }
         });
+    }
+
+    // Implement the method from FriendRequestAdapter.FriendRequestListener
+    @Override
+    public void onFriendRequestAccepted() {
+        // Switch to ContactAdapter when a friend request is accepted
+        loadFriendRequestsAndContacts();
     }
 
     @Override
