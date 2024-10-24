@@ -68,7 +68,8 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 String lastMessageContent = "";
                 long lastMessageTimestamp = 0;
-                boolean hasUnreadMessage = false;  // 用于追踪是否有未读消息
+                boolean hasUnreadMessage = false;  // trace if any unread message
+                int unreadMessageCount = 0; // trace the count of unread messages
 
                 for (DataSnapshot messageSnapshot : snapshot.getChildren()) {
                     for (DataSnapshot messageDetailSnapshot : messageSnapshot.child("messages").getChildren()) {
@@ -76,41 +77,50 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
                         String toUid = messageDetailSnapshot.child("to").getValue(String.class);
                         String messageContent = messageDetailSnapshot.child("message").getValue(String.class);
                         Long timestamp = messageDetailSnapshot.child("timestamp").getValue(Long.class);
-                        Boolean isRead = messageDetailSnapshot.child("isRead").getValue(Boolean.class);  // 获取isRead状态
+                        Boolean isRead = messageDetailSnapshot.child("isRead").getValue(Boolean.class);  // retrieve reading status
 
                         if (fromUid == null || toUid == null || messageContent == null || timestamp == null || isRead == null) {
                             continue;
                         }
 
-                        // 检查消息是否涉及当前用户和聊天用户
+                        // check if the message is between current user and specific friend
                         if ((fromUid.equals(currentUserId) && toUid.equals(chatUser.getId())) ||
                                 (fromUid.equals(chatUser.getId()) && toUid.equals(currentUserId))) {
                             lastMessageContent = messageContent;
                             lastMessageTimestamp = timestamp;
 
-                            // 如果消息来自聊天用户且未读，标记为有未读消息
+                            // if the message is from friend, flag as hasUnreadMessage
                             if (fromUid.equals(chatUser.getId()) && !isRead) {
                                 hasUnreadMessage = true;
+                                unreadMessageCount++;
                             }
                         }
                     }
                 }
 
-                // 显示最后一条消息的内容
+                // show the content of the last message from friend
                 if (!lastMessageContent.isEmpty()) {
                     holder.lastMessage.setText(lastMessageContent);
                 } else {
                     holder.lastMessage.setText("No messages yet");
                 }
 
-                // 显示时间戳（如果有）
+                // display timestamp
                 if (lastMessageTimestamp != 0) {
                     SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
                     String dateString = sdf.format(new Date(lastMessageTimestamp));
                     holder.messageDate.setText(dateString);
                 }
 
-                // 如果有未读消息，更新背景颜色为“新消息”的颜色
+                // Update unreadCountTextView
+                if (unreadMessageCount > 0) {
+                    holder.unreadCountTextView.setText(String.valueOf(unreadMessageCount));
+                    holder.unreadCountTextView.setVisibility(View.VISIBLE);  // display the count
+                } else {
+                    holder.unreadCountTextView.setVisibility(View.GONE);  // hide the count
+                }
+
+                // update the background color based on the Unread Message
                 if (hasUnreadMessage) {
                     holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.new_message_background));
                 } else {
@@ -132,27 +142,27 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
             intent.putExtra("friendName", chatUser.getUserName());
             context.startActivity(intent);
 
-            // 更新本地的 lastSeenMessageTimestamp
-            long currentTimestamp = System.currentTimeMillis();
-            chatUser.setLastSeenMessageTimestamp(currentTimestamp);
-
-            // 将时间戳保存到 Firebase
-            saveLastSeenTimestampToFirebase(chatUser.getId(), currentTimestamp);
+//            // update local lastSeenMessageTimestamp
+//            long currentTimestamp = System.currentTimeMillis();
+//            chatUser.setLastSeenMessageTimestamp(currentTimestamp);
+//
+//            // save timpstap to Firebase
+//            saveLastSeenTimestampToFirebase(chatUser.getId(), currentTimestamp);
         });
     }
 
-    // 保存时间戳到 Firebase
-    private void saveLastSeenTimestampToFirebase(String userId, long timestamp) {
-        DatabaseReference userRef = FirebaseDatabase.getInstance().getReference("Users").child(userId);
-        userRef.child("lastSeenMessageTimestamp").setValue(timestamp)
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        Log.d("Firebase", "Last seen message timestamp updated successfully.");
-                    } else {
-                        Log.e("Firebase", "Failed to update last seen message timestamp.");
-                    }
-                });
-    }
+//    // save timestamp to Firebase
+//    private void saveLastSeenTimestampToFirebase(String userId, long timestamp) {
+//        DatabaseReference userRef = FirebaseDatabase.getInstance().getReference("Users").child(userId);
+//        userRef.child("lastSeenMessageTimestamp").setValue(timestamp)
+//                .addOnCompleteListener(task -> {
+//                    if (task.isSuccessful()) {
+//                        Log.d("Firebase", "Last seen message timestamp updated successfully.");
+//                    } else {
+//                        Log.e("Firebase", "Failed to update last seen message timestamp.");
+//                    }
+//                });
+//    }
 
 
     @Override
@@ -162,7 +172,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
 
     // ViewHolder class for chat items
     public static class ChatViewHolder extends RecyclerView.ViewHolder {
-        TextView userName, lastMessage, messageDate;
+        TextView userName, lastMessage, messageDate,unreadCountTextView;
         ImageView profileImage;
 
         public ChatViewHolder(@NonNull View itemView) {
@@ -171,6 +181,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
             lastMessage = itemView.findViewById(R.id.textViewLastMessage);
             messageDate = itemView.findViewById(R.id.textViewMessageDate);
             profileImage = itemView.findViewById(R.id.imageViewUser);
+            unreadCountTextView = itemView.findViewById(R.id.textViewUnreadCount);
         }
     }
 }
