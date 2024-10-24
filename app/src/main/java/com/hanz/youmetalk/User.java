@@ -8,6 +8,8 @@ public class User {
     private String image;
     private String youMeId;
 
+    private long lastSeenMessageTimestamp = 0;
+
     public User() {
         // empty constructor for firebase
     }
@@ -16,6 +18,14 @@ public class User {
         this.id = id;
         this.userName = userName;
         this.image = profileImage;
+    }
+
+    public long getLastSeenMessageTimestamp() {
+        return lastSeenMessageTimestamp;
+    }
+
+    public void setLastSeenMessageTimestamp(long lastSeenMessageTimestamp) {
+        this.lastSeenMessageTimestamp = lastSeenMessageTimestamp;
     }
 
     public String getId() {
