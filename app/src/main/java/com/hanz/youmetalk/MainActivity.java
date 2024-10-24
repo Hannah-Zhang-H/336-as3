@@ -1,5 +1,6 @@
 package com.hanz.youmetalk;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.Menu;
@@ -111,6 +112,7 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
         outState.putString(CURRENT_ADAPTER_KEY, currentAdapter);
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     @Override
     protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
@@ -184,7 +186,7 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
     }
 
     private void loadContactData() {
-        // 清空列表，避免重复加载
+        // Clear the list to avoid repeated loading
         friendList.clear();
 
         String currentUserId = auth.getCurrentUser().getUid();
@@ -197,6 +199,7 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
                     String friendUid = friendSnapshot.getKey();
 
                     reference.child("Users").child(friendUid).addListenerForSingleValueEvent(new ValueEventListener() {
+                        @SuppressLint("NotifyDataSetChanged")
                         @Override
                         public void onDataChange(@NonNull DataSnapshot userSnapshot) {
                             User friend = userSnapshot.getValue(User.class);
@@ -205,10 +208,10 @@ public class MainActivity extends AppCompatActivity implements ContactAdapter.On
                                 String imageUrl = userSnapshot.child("image").getValue(String.class);
                                 friend.setImage(imageUrl);
 
-                                // 添加朋友到列表
+                                // Add new friend to list
                                 friendList.add(friend);
 
-                                // 确保只更新数据而不是重新创建适配器
+                                // Make sure you only update the data instead of recreating the adapter
                                 contactAdapter.notifyDataSetChanged();
                             }
                         }
