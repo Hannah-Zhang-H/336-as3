@@ -249,6 +249,12 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
 
         // update the last message
         String lastMessageContent = lastMessages.getOrDefault(chatUserId, "No messages yet");
+        int maxLength = 15;  // Set the max length for the last message
+
+        assert lastMessageContent != null;
+        if (lastMessageContent.length() > maxLength) {
+            lastMessageContent = lastMessageContent.substring(0, maxLength) + "...";
+        }
         holder.lastMessage.setText(lastMessageContent);
 
         // update timestamp
@@ -334,5 +340,10 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
 
         Log.d("ChatAdapter", "Chat list size after removal: " + chatUserList.size());
         notifyDataSetChanged();
+
+        Log.d("ChatAdapter", "Chat list size after removal: " + chatUserList.size());
+        notifyDataSetChanged();  // Notify the adapter to refresh the view
     }
+
+
 }

@@ -10,9 +10,9 @@
 
     <ImageView
         android:id="@+id/bottomImageView"
-        android:layout_width="293dp"
-        android:layout_height="194dp"
-        android:layout_marginTop="50dp"
+        android:layout_width="373dp"
+        android:layout_height="196dp"
+        android:layout_marginTop="10dp"
 
         android:src="@drawable/find_friend"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -120,10 +120,10 @@
 
     <Button
         android:id="@+id/buttonAddFriend"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="189dp"
+        android:layout_height="48dp"
         android:layout_marginTop="24dp"
-        android:text="Add Friend"
+        android:text="ADD FRIEND"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"

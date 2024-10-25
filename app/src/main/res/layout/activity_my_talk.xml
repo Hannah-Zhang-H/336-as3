@@ -52,7 +52,7 @@
             android:inputType="textMultiLine"
             android:padding="15dp"
             android:textColor="#0B0A0A"
-            android:textSize="20sp" />
+            android:textSize="13sp" />
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fab"
