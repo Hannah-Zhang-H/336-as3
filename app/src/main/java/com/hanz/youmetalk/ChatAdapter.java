@@ -1,8 +1,13 @@
 package com.hanz.youmetalk;
 
 import android.annotation.SuppressLint;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.os.Build;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -11,6 +16,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.app.NotificationCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
@@ -38,6 +44,11 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
     private HashMap<String, String> lastMessages;
     private HashMap<String, Long> lastMessageTimestamps;
 
+    // the variables for notification
+    private static final String CHANNEL_ID = "message_channel";
+    private static final String PREFS_NAME = "MyPrefsFile";
+    private static final String LAST_NOTIFIED_TIMESTAMP_KEY = "lastNotifiedTimestamp";
+    private long lastNotifiedTimestamp;
 
     public ChatAdapter(Context context, List<User> chatUserList) {
         this.context = context;
@@ -47,7 +58,10 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
         lastMessages = new HashMap<>();
         lastMessageTimestamps = new HashMap<>();
 
-        // add firebase listener
+        // load lastNotifiedTimestamp from SharedPreferences
+        SharedPreferences settings = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        lastNotifiedTimestamp = settings.getLong(LAST_NOTIFIED_TIMESTAMP_KEY, 0);
+
         listenForMessageUpdates();
     }
 
@@ -72,10 +86,8 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
             holder.profileImage.setImageResource(R.drawable.profile_placeholder);
         }
 
-        // update the last message and unread count
         updateMessageStatus(chatUser.getId(), holder);
 
-        // click card start talk activity
         holder.itemView.setOnClickListener(view -> {
             Intent intent = new Intent(context, MyTalkActivity.class);
             intent.putExtra("friendId", chatUser.getId());
@@ -89,7 +101,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
         return chatUserList.size();
     }
 
-    // add firebase listener
+    // define Firebase listener
     private void listenForMessageUpdates() {
         String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
         DatabaseReference messageRef = FirebaseDatabase.getInstance().getReference("Messages");
@@ -118,14 +130,14 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
         });
     }
 
-    // update the unread message, last message and record the timestamp
+    // Update Unread Message, Last Message, timestamp
     private void updateUnreadMessages(DataSnapshot snapshot, String currentUserId) {
         String chatUserId = snapshot.getKey().contains(currentUserId)
                 ? snapshot.getKey().replace(currentUserId, "").replace("_", "")
                 : null;
 
         if (chatUserId != null) {
-            // update the message status of specific user
+            // update message status for chat user
             loadLastMessageAndUnreadCount(chatUserId);
         }
     }
@@ -141,6 +153,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
                 boolean hasUnreadMessage = false;
                 String lastMessageContent = "";
                 long lastMessageTimestamp = 0;
+                long latestMessageTimestamp = lastNotifiedTimestamp;
 
                 for (DataSnapshot messageSnapshot : snapshot.getChildren()) {
                     for (DataSnapshot messageDetailSnapshot : messageSnapshot.child("messages").getChildren()) {
@@ -156,29 +169,51 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
 
                         if ((fromUid.equals(currentUserId) && toUid.equals(chatUserId)) ||
                                 (fromUid.equals(chatUserId) && toUid.equals(currentUserId))) {
-                            lastMessageContent = messageContent;
-                            lastMessageTimestamp = timestamp;
+                            // Update the last message content and timestamp
+                            if (timestamp > lastMessageTimestamp) {
+                                lastMessageContent = messageContent;
+                                lastMessageTimestamp = timestamp;
+                            }
 
                             if (fromUid.equals(chatUserId) && !isRead) {
                                 hasUnreadMessage = true;
                                 unreadMessageCount++;
                             }
+
+                            // check if there are any unnoticed unread message
+                            if (timestamp > latestMessageTimestamp) {
+                                latestMessageTimestamp = timestamp;
+                            }
                         }
                     }
                 }
 
-                // save the last message content and time stamp
+                // save the last message content and timestamp
                 lastMessages.put(chatUserId, lastMessageContent);
                 lastMessageTimestamps.put(chatUserId, lastMessageTimestamp);
 
-                // update the unread count and background color
+                // update unread count and background color
                 unreadMessageCounts.put(chatUserId, unreadMessageCount);
                 hasUnreadMessages.put(chatUserId, hasUnreadMessage);
 
-                // find the user in the list and refresh
+                // validate sending notification
+                if (latestMessageTimestamp > lastNotifiedTimestamp) {
+                    if (unreadMessageCount > 0) {
+                        sendNotification(unreadMessageCount);
+                        lastNotifiedTimestamp = latestMessageTimestamp;
+
+                        // save lastNotifiedTimestamp to SharedPreferences
+                        SharedPreferences settings = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                        SharedPreferences.Editor editor = settings.edit();
+                        editor.putLong(LAST_NOTIFIED_TIMESTAMP_KEY, lastNotifiedTimestamp);
+                        editor.apply();
+                    }
+                }
+
+                // update recyclerview
                 int position = findUserPosition(chatUserId);
                 if (position != -1) {
-                    notifyItemChanged(position);  // only refresh the item changed
+                    notifyItemChanged(position);  // only update the change item
                 }
             }
 
@@ -189,7 +224,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
         });
     }
 
-    // check the postion of the user
+    // check the user position
     private int findUserPosition(String chatUserId) {
         for (int i = 0; i < chatUserList.size(); i++) {
             if (chatUserList.get(i).getId().equals(chatUserId)) {
@@ -199,13 +234,12 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
         return -1;  // user not in the list
     }
 
-
-    // update the last message, unread count, background
+    // update the last message,count, background color
     private void updateMessageStatus(String chatUserId, ChatViewHolder holder) {
         int unreadMessageCount = unreadMessageCounts.getOrDefault(chatUserId, 0);
         boolean hasUnreadMessage = hasUnreadMessages.getOrDefault(chatUserId, false);
 
-        // update unread message
+        // update the messages count
         if (unreadMessageCount > 0) {
             holder.unreadCountTextView.setText(String.valueOf(unreadMessageCount));
             holder.unreadCountTextView.setVisibility(View.VISIBLE);
@@ -213,7 +247,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
             holder.unreadCountTextView.setVisibility(View.GONE);
         }
 
-        // update last message
+        // update the last message
         String lastMessageContent = lastMessages.getOrDefault(chatUserId, "No messages yet");
         int maxLength = 15;  // Set the max length for the last message
 
@@ -222,7 +256,6 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
             lastMessageContent = lastMessageContent.substring(0, maxLength) + "...";
         }
         holder.lastMessage.setText(lastMessageContent);
-
 
         // update timestamp
         long lastMessageTimestamp = lastMessageTimestamps.getOrDefault(chatUserId, 0L);
@@ -234,7 +267,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
             holder.messageDate.setText("");
         }
 
-        // update background color
+        // update the background color
         if (hasUnreadMessage) {
             Log.d("ChatAdapter", "Setting unread background for user: " + chatUserId);
             holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.new_message_background));
@@ -244,7 +277,34 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
         }
     }
 
-    // ViewHolder class for chat items
+    // send notification
+    private void sendNotification(int unreadMessageCount) {
+        NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Message Notifications",
+                    NotificationManager.IMPORTANCE_HIGH);
+            notificationManager.createNotificationChannel(channel);
+            Log.d("ChatAdapter", "Notification Channel Created");
+        }
+
+        Intent intent = new Intent(context, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.drawable.logo)
+                .setContentTitle("You have " + unreadMessageCount + " unread messages")
+                .setContentText("Check your messages.")
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent);
+
+        Log.d("ChatAdapter", "Sending Notification for " + unreadMessageCount + " unread messages");
+        notificationManager.notify(1, notificationBuilder.build());
+    }
+
     public static class ChatViewHolder extends RecyclerView.ViewHolder {
         TextView userName, lastMessage, messageDate, unreadCountTextView;
         ImageView profileImage;
@@ -259,12 +319,11 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
         }
     }
 
-    // Method to remove chats related to a specific friend
+    // remove the chats
     @SuppressLint("NotifyDataSetChanged")
     public void removeChatsWithFriend(String friendId) {
         List<User> updatedUserList = new ArrayList<>();
         for (User user : chatUserList) {
-            // Keep only the users that are not the deleted friend
             if (!user.getId().equals(friendId)) {
                 updatedUserList.add(user);
             }
@@ -274,12 +333,13 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
         chatUserList.clear();
         chatUserList.addAll(updatedUserList);
 
-        // Also remove this friend's data from the message status maps
         unreadMessageCounts.remove(friendId);
         lastMessages.remove(friendId);
         lastMessageTimestamps.remove(friendId);
         hasUnreadMessages.remove(friendId);
 
+        Log.d("ChatAdapter", "Chat list size after removal: " + chatUserList.size());
+        notifyDataSetChanged();
 
         Log.d("ChatAdapter", "Chat list size after removal: " + chatUserList.size());
         notifyDataSetChanged();  // Notify the adapter to refresh the view
