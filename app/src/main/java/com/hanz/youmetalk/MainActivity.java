@@ -5,19 +5,20 @@ import android.annotation.SuppressLint;
 import android.content.Intent;
 
 import android.content.pm.PackageManager;
-import android.media.MediaPlayer;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.google.android.material.badge.BadgeDrawable;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.auth.FirebaseAuth;
@@ -31,6 +32,32 @@ import com.hanz.youmetalk.databinding.ActivityMainBinding;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+
+// *****************************************************************************************
+/***
+ * Student1 ID and Name: 18027970, Lei Liu
+ * Student2 ID and Name: 22015651, Han Zhang
+ */
+// *****************************************************************************************
+/**
+ * MainActivity manages the core UI of the YouMeTalk app, handling chat, contacts, and friend requests.
+ *
+ * Key Features:
+ * - BottomNavigationView allows seamless switching between Chat, Contact, and Profile sections.
+ * - Firebase integration for real-time updates on friends, friend requests, and message notifications.
+ * - Displays unread message badges and handles friend request notifications.
+ * - Supports adding new friends, viewing friend profiles, and managing chat history.
+ *
+ * Methods:
+ * - `loadChatUsers()`: Loads chat user data from Firebase to display in the chat section.
+ * - `loadFriendRequestsAndContacts()`: Retrieves pending friend requests and friend contacts.
+ * - `onActivityResult(int requestCode, int resultCode, Intent data)`: Refreshes views after friend deletion.
+ *
+ * Permissions and UI:
+ * - Checks notification permissions (API 33+) for showing message notifications.
+ * - Saves and restores adapter state across configuration changes.
+ */
 
 public class MainActivity extends AppCompatActivity
         implements ContactAdapter.OnFriendRequestCardClickListener, FriendRequestAdapter.FriendRequestListener {
@@ -191,9 +218,10 @@ public class MainActivity extends AppCompatActivity
 
     private void loadChatUsers() {
         List<User> chatUserList = new ArrayList<>();
-        String currentUserId = auth.getCurrentUser().getUid();
+        String currentUserId = Objects.requireNonNull(auth.getCurrentUser()).getUid();
 
         reference.child("Messages").addListenerForSingleValueEvent(new ValueEventListener() {
+            @SuppressLint("NotifyDataSetChanged")
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 for (DataSnapshot messageSnapshot : snapshot.getChildren()) {
@@ -203,6 +231,7 @@ public class MainActivity extends AppCompatActivity
                         String chattingPartnerUid = uids[0].equals(currentUserId) ? uids[1] : uids[0];
 
                         reference.child("Users").child(chattingPartnerUid).addListenerForSingleValueEvent(new ValueEventListener() {
+                            @SuppressLint("NotifyDataSetChanged")
                             @Override
                             public void onDataChange(@NonNull DataSnapshot userSnapshot) {
                                 User chatUser = userSnapshot.getValue(User.class);
@@ -216,7 +245,8 @@ public class MainActivity extends AppCompatActivity
                             }
 
                             @Override
-                            public void onCancelled(@NonNull DatabaseError error) { }
+                            public void onCancelled(@NonNull DatabaseError error) {
+                            }
                         });
                     }
                 }
@@ -227,7 +257,8 @@ public class MainActivity extends AppCompatActivity
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) { }
+            public void onCancelled(@NonNull DatabaseError error) {
+            }
         });
     }
 
@@ -239,7 +270,7 @@ public class MainActivity extends AppCompatActivity
     private void loadContactData() {
         friendList.clear();
 
-        String currentUserId = auth.getCurrentUser().getUid();
+        String currentUserId = Objects.requireNonNull(auth.getCurrentUser()).getUid();
         DatabaseReference friendsRef = reference.child("Users").child(currentUserId).child("Friends");
 
         friendsRef.addListenerForSingleValueEvent(new ValueEventListener() {
@@ -248,6 +279,7 @@ public class MainActivity extends AppCompatActivity
                 for (DataSnapshot friendSnapshot : snapshot.getChildren()) {
                     String friendUid = friendSnapshot.getKey();
 
+                    assert friendUid != null;
                     reference.child("Users").child(friendUid).addListenerForSingleValueEvent(new ValueEventListener() {
                         @SuppressLint("NotifyDataSetChanged")
                         @Override
@@ -263,7 +295,7 @@ public class MainActivity extends AppCompatActivity
 
                         @Override
                         public void onCancelled(@NonNull DatabaseError error) {
-                            Log.e( "onCancelled: ", error.getMessage());
+                            Log.e("onCancelled: ", error.getMessage());
                         }
                     });
                 }
@@ -279,10 +311,11 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void loadFriendRequestSummary() {
-        String currentUserId = auth.getCurrentUser().getUid();
+        String currentUserId = Objects.requireNonNull(auth.getCurrentUser()).getUid();
         DatabaseReference requestRef = reference.child("FriendRequest").child(currentUserId);
 
         requestRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @SuppressLint("NotifyDataSetChanged")
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 friendRequestList.clear();
@@ -303,7 +336,8 @@ public class MainActivity extends AppCompatActivity
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) { }
+            public void onCancelled(@NonNull DatabaseError error) {
+            }
         });
     }
 
@@ -313,10 +347,11 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void switchToFriendRequests() {
-        String currentUserId = auth.getCurrentUser().getUid();
+        String currentUserId = Objects.requireNonNull(auth.getCurrentUser()).getUid();
         DatabaseReference requestRef = reference.child("FriendRequest").child(currentUserId);
 
         requestRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @SuppressLint("NotifyDataSetChanged")
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 friendRequestList.clear();
@@ -333,7 +368,8 @@ public class MainActivity extends AppCompatActivity
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) { }
+            public void onCancelled(@NonNull DatabaseError error) {
+            }
         });
     }
 
@@ -377,6 +413,8 @@ public class MainActivity extends AppCompatActivity
             if (deletedFriendId != null) {
                 chatAdapter.removeChatsWithFriend(deletedFriendId);
                 chatAdapter.notifyDataSetChanged();
+                contactAdapter.removeFriend(deletedFriendId);
+                contactAdapter.notifyDataSetChanged();
             }
         } else {
             Log.d("MainActivity", "onActivityResult failed or data is null");

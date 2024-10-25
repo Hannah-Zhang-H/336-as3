@@ -22,10 +22,25 @@ import com.google.firebase.database.ValueEventListener;
 
 import java.util.List;
 
+/**
+ * MessageAdapter manages the display of chat messages in a RecyclerView, distinguishing sent and received messages.
+ *
+ * Key Features:
+ * - Differentiates sent/received messages by loading appropriate layouts.
+ * - Loads sender profile images and user info from Firebase.
+ * - Supports profile image clicks for viewing profiles or deleting friends.
+ * - Long-click listener enables additional message management options.
+ *
+ * Main Methods:
+ * - `onBindViewHolder()`: Binds data to message views, including profile image and long-click actions.
+ * - `getItemViewType()`: Determines view type based on sent/received status.
+ */
+
+
 public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageViewHolder> {
-    private List<Model> list;
-    private String currentUserId;
-    private OnMessageLongClickListener longClickListener;
+    private final List<Model> list;
+    private final String currentUserId;
+    private final OnMessageLongClickListener longClickListener;
 
     private static final int SEND_TYPE = 1;
     private static final int RECEIVE_TYPE = 2;
@@ -120,7 +135,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         return list.size();
     }
 
-    public class MessageViewHolder extends RecyclerView.ViewHolder {
+    public static class MessageViewHolder extends RecyclerView.ViewHolder {
         TextView textView;
         ImageView profileImage;
 

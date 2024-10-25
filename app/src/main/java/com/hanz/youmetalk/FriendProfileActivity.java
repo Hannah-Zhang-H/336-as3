@@ -2,8 +2,6 @@ package com.hanz.youmetalk;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
-import android.view.View;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -22,9 +20,27 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.hanz.youmetalk.databinding.ActivityFriendProfileBinding;
 
+import java.util.Objects;
+
+/**
+ * FriendProfileActivity provides a UI for displaying a friend's profile information and
+ * managing friendship options, such as deleting the friend.
+
+ * Key Functionalities:
+ * 1. **Display Friend's Information**: Shows the friend's name, YouMeID, and profile picture,
+ *    which are passed as extras in the Intent.
+ * 2. **Delete Friendship**: Allows users to delete a friend by removing both users from each other's
+ *    friend lists, deleting the chat history, and removing any outstanding friend requests between them.
+ * 3. **Edge-to-Edge UI Configuration**: Configures the view to accommodate system bars for a
+ *    seamless, edge-to-edge design.
+ * 4. **Result Return for Friend Deletion**: After successful deletion, this activity returns the
+ *    friend's ID to the previous activity to trigger UI updates.
+
+ * This activity ensures proper cleanup of user relationships and message history in a structured,
+ * user-friendly interface.
+ */
 public class FriendProfileActivity extends AppCompatActivity {
 
-    private ActivityFriendProfileBinding binding;  // Declare ViewBinding variable
     private String friendId;
     private String currentUserId;
 
@@ -33,7 +49,8 @@ public class FriendProfileActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         // Initialize ViewBinding
-        binding = ActivityFriendProfileBinding.inflate(getLayoutInflater());
+        // Declare ViewBinding variable
+        com.hanz.youmetalk.databinding.ActivityFriendProfileBinding binding = ActivityFriendProfileBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
         // EdgeToEdge configuration
@@ -51,23 +68,21 @@ public class FriendProfileActivity extends AppCompatActivity {
 
 
         // Display the friend's name and youMeId
-        binding.textInputLayoutFriendName.getEditText().setText(friendName);
-        binding.textInputLayoutFriendYouMeID.getEditText().setText(friendYouMeID);
+        Objects.requireNonNull(binding.textInputLayoutFriendName.getEditText()).setText(friendName);
+        Objects.requireNonNull(binding.textInputLayoutFriendYouMeID.getEditText()).setText(friendYouMeID);
 
         // Get the current user ID
-        currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        currentUserId = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
 
         // Set the delete button click event
-        binding.buttonDeleteFriend.setOnClickListener(v -> {
-            new AlertDialog.Builder(this)
-                    .setTitle("Delete Friend")
-                    .setMessage("Are you sure you want to delete this friend?")
-                    .setPositiveButton("Yes", (dialog, which) -> {
-                        deleteFriendship();  // Delete friend
-                    })
-                    .setNegativeButton("No", null)
-                    .show();
-        });
+        binding.buttonDeleteFriend.setOnClickListener(v -> new AlertDialog.Builder(this)
+                .setTitle("Delete Friend")
+                .setMessage("Are you sure you want to delete this friend?")
+                .setPositiveButton("Yes", (dialog, which) -> {
+                    deleteFriendship();  // Delete friend
+                })
+                .setNegativeButton("No", null)
+                .show());
 
         // Load the friend's profile image (assuming the image URL is passed through the Intent)
         String friendImage = intent.getStringExtra("friendImage");
@@ -88,7 +103,7 @@ public class FriendProfileActivity extends AppCompatActivity {
                                 .addOnCompleteListener(innerTask -> {
                                     if (innerTask.isSuccessful()) {
                                         // Remove chat history between the two users
-                                        deleteChatHistoryAndFriendRequest(currentUserId, friendId);  // 删除聊天记录和好友请求
+                                        deleteChatHistoryAndFriendRequest(currentUserId, friendId);  
                                     } else {
                                         Toast.makeText(FriendProfileActivity.this, "Failed to remove friendship from friend's list", Toast.LENGTH_SHORT).show();
                                     }

@@ -2,7 +2,6 @@ package com.hanz.youmetalk;
 
 import android.content.Context;
 import android.content.Intent;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -22,6 +21,25 @@ import com.squareup.picasso.Picasso;
 import java.util.List;
 
 import de.hdodenhof.circleimageview.CircleImageView;
+
+/**
+ * UsersAdapter is a RecyclerView adapter for displaying a list of users in the YouMeTalk application.
+ * <p>
+ * This adapter provides the functionality to display each user's profile image and name in a card view.
+ * Tapping a user card navigates to MyTalkActivity, passing the user's name, friend ID, and friend name.
+ * <p>
+ * Attributes:
+ * - `userList`: List of users to display.
+ * - `context`: Context for managing resources.
+ * - `currentUserName`: Name of the current user.
+ * - `reference`: DatabaseReference for Firebase data retrieval.
+ * - `database`: FirebaseDatabase instance.
+ * <p>
+ * Key Methods:
+ * - `onCreateViewHolder()`: Inflates the layout for user cards.
+ * - `onBindViewHolder()`: Binds each user’s data to the view holder, loading profile image and setting click listener.
+ * - `getItemCount()`: Returns the size of the user list.
+ */
 
 public class UsersAdapter extends RecyclerView.Adapter<UsersAdapter.ViewHolder> {
 
@@ -92,10 +110,10 @@ public class UsersAdapter extends RecyclerView.Adapter<UsersAdapter.ViewHolder> 
         return userList.size();
     }
 
-    public class ViewHolder extends RecyclerView.ViewHolder {
-        private TextView textViewUser;
-        private CircleImageView imageViewUser;
-        private CardView cardView;
+    public static class ViewHolder extends RecyclerView.ViewHolder {
+        private final TextView textViewUser;
+        private final CircleImageView imageViewUser;
+        private final CardView cardView;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);

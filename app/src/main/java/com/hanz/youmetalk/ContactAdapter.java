@@ -1,7 +1,12 @@
 package com.hanz.youmetalk;
 
+import static com.hanz.youmetalk.MainActivity.REQUEST_CODE_DELETE_FRIEND;
+
+import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,17 +19,35 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
 
+import java.util.ArrayList;
 import java.util.List;
+/**
+ * ContactAdapter is a RecyclerView adapter for displaying a list of user's friends and
+ * friend requests in a contact or friend management section of a messaging app.
+
+ * Key Features:
+ * 1. **View Types for Contacts and Friend Requests**: Manages two view types, one for
+ *    friend requests summary and another for friend contact list items.
+ * 2. **Friend Request Summary**: Shows a clickable summary of pending friend requests.
+ *    Clicking it triggers a callback to show friend request details.
+ * 3. **Long Click to View Friend Profile**: Enables users to long-click a contact item
+ *    to view or delete a friend through FriendProfileActivity.
+ * 4. **Remove Friend Functionality**: Provides a method to remove a friend from the
+ *    contact list and updates the UI upon deletion.
+
+ * This adapter facilitates contact management, providing a user-friendly interface
+ * for navigating friends and handling friend requests in the messaging app.
+ */
 
 public class ContactAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     private static final int VIEW_TYPE_SUMMARY = 0;
     private static final int VIEW_TYPE_CONTACT = 1;
 
-    private Context context;
-    private List<User> friendList;
-    private int waitingFriendRequestCount;
-    private OnFriendRequestCardClickListener onFriendRequestCardClickListener;
+    private final Context context;
+    private final List<User> friendList;
+    private final int waitingFriendRequestCount;
+    private final OnFriendRequestCardClickListener onFriendRequestCardClickListener;
 
     public interface OnFriendRequestCardClickListener {
         void onFriendRequestCardClick();
@@ -91,6 +114,7 @@ public class ContactAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             });
         }
 
+        @SuppressLint("SetTextI18n")
         public void bind(int friendRequestCount) {
             textFriendRequestSummary.setText("You have " + friendRequestCount + " friend requests");
         }
@@ -132,6 +156,38 @@ public class ContactAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             });
 
 
+            // Click the friend image, go to friend profile activity, users can choose to delete the friend
+            // Set click listener for profile image (only for received messages)
+
+            itemView.setOnLongClickListener(v -> {
+                // Intent to navigate to FriendProfileActivity
+                Intent intent = new Intent(itemView.getContext(), FriendProfileActivity.class);
+                intent.putExtra("friendId", friend.getId());  // Pass the friend's ID
+                intent.putExtra("friendName", friend.getUserName());  // Pass the friend's name
+                intent.putExtra("friendImage", friend.getImage());  // Pass the friend's profile image URL
+                intent.putExtra("friendYouMeId", friend.getYouMeId());  // Pass the friend's profile image URL
+                ((Activity) itemView.getContext()).startActivityForResult(intent, REQUEST_CODE_DELETE_FRIEND);  // Use the request code for result
+                return true;
+            });
+
+
         }
     }
+
+    @SuppressLint("NotifyDataSetChanged")
+    public void removeFriend(String friendId) {
+        List<User> updatedFriendList = new ArrayList<>();
+        for (User friend : friendList) {
+            if (!friend.getId().equals(friendId)) {
+                updatedFriendList.add(friend);
+            }
+        }
+
+        Log.d("ContactAdapter", "Removing friend from contact list: " + friendId);
+        friendList.clear();
+        friendList.addAll(updatedFriendList);
+
+        notifyDataSetChanged();  // Notify the adapter to refresh the view
+    }
+
 }

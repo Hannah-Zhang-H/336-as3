@@ -89,10 +89,12 @@
 
     <Button
         android:id="@+id/buttonUpdate"
-        android:layout_width="124dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="26dp"
+        android:layout_width="149dp"
+        android:layout_height="41dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="7dp"
         android:text="UPDATE"
+        app:layout_constraintBottom_toTopOf="@+id/uploadProgressTextProfile"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
@@ -106,37 +108,41 @@
         android:layout_marginStart="25dp"
         android:layout_marginTop="28dp"
         android:layout_marginEnd="25dp"
-        android:layout_marginBottom="46dp"
+        android:layout_marginBottom="10dp"
         android:indeterminate="false"
         android:max="100"
-        android:progressTint="@color/light_green"
         android:visibility="gone"
+        android:progressTint="@color/light_green"
+
         app:layout_constraintBottom_toTopOf="@+id/imageView5"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/buttonUpdate" />
+        app:layout_constraintTop_toBottomOf="@+id/buttonUpdate"
+        app:layout_constraintVertical_bias="1.0" />
 
     <TextView
         android:id="@+id/uploadProgressTextProfile"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="2dp"
         android:text="@string/upload_progress_0"
         android:textColor="@color/black"
         android:textSize="14sp"
         android:visibility="gone"
+
         app:layout_constraintBottom_toTopOf="@+id/uploadProgressBarProfile"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/buttonUpdate" />
 
 
     <ImageView
         android:id="@+id/imageView5"
-        android:layout_width="358dp"
-        android:layout_height="250dp"
+        android:layout_width="355dp"
+        android:layout_height="174dp"
         android:layout_marginStart="15dp"
-        android:layout_marginBottom="3dp"
+        android:layout_marginBottom="1dp"
         android:background="@drawable/profilepic"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

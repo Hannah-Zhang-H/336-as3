@@ -34,15 +34,32 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
+/**
+ * ChatAdapter is a RecyclerView adapter for displaying and managing a list of chat users
+ * in a messaging application. It connects to Firebase to update the UI with real-time
+ * message data, including unread counts, last messages, and timestamps.
+
+ * Key Features:
+ * 1. **Notification Handling**: Sends notifications for new unread messages, storing the
+ *    last notification timestamp in shared preferences to avoid duplicate notifications.
+ * 2. **Message Status Management**: Tracks and updates UI elements to display unread
+ *    messages, last message text, and timestamps. It visually distinguishes chats with
+ *    unread messages through color-coded backgrounds and unread message counts.
+ * 3. **Chat Deletion Support**: Provides a method to remove specific users from the chat
+ *    list when a friend is deleted, updating the RecyclerView accordingly.
+
+ * This class provides a user-friendly and responsive chat interface that stays up-to-date
+ * with Firebase data changes, ensuring users can efficiently manage and view their messages.
+ */
 
 public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder> {
-
-    private Context context;
-    private List<User> chatUserList;
-    private HashMap<String, Integer> unreadMessageCounts;
-    private HashMap<String, Boolean> hasUnreadMessages;
-    private HashMap<String, String> lastMessages;
-    private HashMap<String, Long> lastMessageTimestamps;
+    private final Context context;
+    private final List<User> chatUserList;
+    private final HashMap<String, Integer> unreadMessageCounts;
+    private final HashMap<String, Boolean> hasUnreadMessages;
+    private final HashMap<String, String> lastMessages;
+    private final HashMap<String, Long> lastMessageTimestamps;
 
     // the variables for notification
     private static final String CHANNEL_ID = "message_channel";
@@ -103,7 +120,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
 
     // define Firebase listener
     private void listenForMessageUpdates() {
-        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        String currentUserId = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
         DatabaseReference messageRef = FirebaseDatabase.getInstance().getReference("Messages");
 
         messageRef.addChildEventListener(new ChildEventListener() {
@@ -118,10 +135,12 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
             }
 
             @Override
-            public void onChildRemoved(@NonNull DataSnapshot snapshot) { }
+            public void onChildRemoved(@NonNull DataSnapshot snapshot) {
+            }
 
             @Override
-            public void onChildMoved(@NonNull DataSnapshot snapshot, String previousChildName) { }
+            public void onChildMoved(@NonNull DataSnapshot snapshot, String previousChildName) {
+            }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
@@ -132,7 +151,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
 
     // Update Unread Message, Last Message, timestamp
     private void updateUnreadMessages(DataSnapshot snapshot, String currentUserId) {
-        String chatUserId = snapshot.getKey().contains(currentUserId)
+        String chatUserId = Objects.requireNonNull(snapshot.getKey()).contains(currentUserId)
                 ? snapshot.getKey().replace(currentUserId, "").replace("_", "")
                 : null;
 
@@ -143,7 +162,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
     }
 
     private void loadLastMessageAndUnreadCount(String chatUserId) {
-        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        String currentUserId = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
         DatabaseReference messageRef = FirebaseDatabase.getInstance().getReference("Messages");
 
         messageRef.addListenerForSingleValueEvent(new com.google.firebase.database.ValueEventListener() {
@@ -237,7 +256,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
     // update the last message,count, background color
     private void updateMessageStatus(String chatUserId, ChatViewHolder holder) {
         int unreadMessageCount = unreadMessageCounts.getOrDefault(chatUserId, 0);
-        boolean hasUnreadMessage = hasUnreadMessages.getOrDefault(chatUserId, false);
+        boolean hasUnreadMessage = Boolean.TRUE.equals(hasUnreadMessages.getOrDefault(chatUserId, false));
 
         // update the messages count
         if (unreadMessageCount > 0) {
