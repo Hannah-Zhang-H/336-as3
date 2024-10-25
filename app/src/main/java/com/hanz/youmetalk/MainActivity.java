@@ -1,11 +1,10 @@
 package com.hanz.youmetalk;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.content.Context;
 import android.content.Intent;
+
+import android.content.pm.PackageManager;
 import android.media.MediaPlayer;
 import android.os.Build;
 import android.os.Bundle;
@@ -17,13 +16,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import androidx.core.app.NotificationCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import androidx.work.Constraints;
-import androidx.work.NetworkType;
-import androidx.work.PeriodicWorkRequest;
-import androidx.work.WorkManager;
 import com.google.android.material.badge.BadgeDrawable;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.auth.FirebaseAuth;
@@ -37,7 +31,6 @@ import com.hanz.youmetalk.databinding.ActivityMainBinding;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity
         implements ContactAdapter.OnFriendRequestCardClickListener, FriendRequestAdapter.FriendRequestListener {
@@ -55,7 +48,6 @@ public class MainActivity extends AppCompatActivity
     ChatAdapter chatAdapter;
 
     private static final String CURRENT_ADAPTER_KEY = "current_adapter_key";
-    private static final String CHANNEL_ID = "message_channel";
     private String currentAdapter = "chatAdapter";  // default adapter
     public static final int REQUEST_CODE_DELETE_FRIEND = 1001;
 
@@ -65,6 +57,13 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Check notification permission for API level 33+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
+            }
+        }
 
         // Inflate the layout
         ActivityMainBinding mainLayout = ActivityMainBinding.inflate(getLayoutInflater());
@@ -122,19 +121,6 @@ public class MainActivity extends AppCompatActivity
             loadFriendRequestsAndContacts();
         }
 
-        // Schedule message checker to periodically check for unread messages
-        Constraints constraints = new Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
-                .setRequiresBatteryNotLow(true)
-                .build();
-
-        PeriodicWorkRequest workRequest = new PeriodicWorkRequest.Builder(
-                MessageChecker.class, 5, TimeUnit.MINUTES)
-                .setConstraints(constraints)
-                .build();
-
-        WorkManager.getInstance(this).enqueue(workRequest);
-
         // Check unread messages when activity starts
         reference.child("Messages").addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
@@ -163,37 +149,10 @@ public class MainActivity extends AppCompatActivity
         }
 
         if (unreadMessageCount > 0) {
-            sendNotification(unreadMessageCount);
             showUnreadMessageBadge(unreadMessageCount);  // Show red dot on chat tab
         } else {
             removeUnreadMessageBadge();  // Remove red dot if no unread messages
         }
-    }
-
-    // Send local notification
-    private void sendNotification(int unreadMessageCount) {
-        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Message Notifications",
-                    NotificationManager.IMPORTANCE_HIGH);
-            notificationManager.createNotificationChannel(channel);
-        }
-
-        Intent intent = new Intent(this, MainActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent,
-                PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE);
-
-        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.logo)
-                .setContentTitle("You have " + unreadMessageCount + " unread messages")
-                .setContentText("Check your messages.")
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setAutoCancel(true)
-                .setContentIntent(pendingIntent);
-
-        notificationManager.notify(1, notificationBuilder.build());
     }
 
     // Show unread message red dot (badge) on chat tab
