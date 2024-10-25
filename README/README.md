@@ -50,25 +50,28 @@ Tap Build number seven times to enable Developer options.
 - **Update Profile**：Fill the form out in the Profile Module and tap update button.
 
 ## Screenshot
-
+<p align="center">
 <img src="./login.png" alt="LogIn" width="150" height="300">
 <img src="./signup.png" alt="Signup" width="150" height="300">
 <img src="./reset.png" alt="ResetPwd" width="150" height="300">
 <img src="./resetpwd.png" alt="ResetPwdlink" width="150" height="300">
 <img src="./reset.png" alt="ResetPwd" width="150" height="300">
 <img src="./chatmodule.png" alt="chatmodule" width="150" height="300">
+</p>
+<p align="center">
 <img src="./addfriend.png" alt="addfriend" width="150" height="300">
 <img src="./contactmodule.png" alt="contact" width="150" height="300">
-<br>
 <img src="./friendrequests.png" alt="friendrequests" width="150" height="300">
 <img src="./profilemodule.png" alt="profile" width="150" height="300">
 <img src="./deletefriend.png" alt="deletefriend" width="150" height="300">
 <img src="./deletemessage.png" alt="deletefriend" width="150" height="300">
+</p>
+<p align="center">
 <img src="./newunreadmessage.png" alt="newunreadmessage" width="150" height="300">
 <img src="./notification.jpg" alt="notification" width="150" height="300">
 <img src="./messagepage.png" alt="newunreadmessage" width="150" height="300">
 <img src="./profileimagechange.png" alt="newunreadmessage" width="150" height="300">
-
+</p>
 ## Update log
 
 ### Version 1.0.0
