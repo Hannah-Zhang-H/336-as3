@@ -36,6 +36,8 @@ import java.util.Objects;
 
 // *****************************************************************************************
 /***
+ * Please read README file under root folder
+ * github link: https://github.com/Hannah-Zhang-H/336-as3
  * Student1 ID and Name: 18027970, Lei Liu
  * Student2 ID and Name: 22015651, Han Zhang
  */
