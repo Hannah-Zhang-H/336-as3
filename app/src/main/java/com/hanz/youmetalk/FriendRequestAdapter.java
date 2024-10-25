@@ -1,6 +1,7 @@
 package com.hanz.youmetalk;
 
 import android.content.Context;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -86,7 +87,7 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
 
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
-                // Handle error
+                Log.e("FRA db err",databaseError.getMessage());
             }
         });
 
@@ -216,7 +217,7 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                // Handle error
+                Log.e("Reload Friend Requests",error.getMessage());
             }
         });
     }

@@ -112,8 +112,8 @@ public class FriendProfileActivity extends AppCompatActivity {
             if (task.isSuccessful()) {
                 messagesRef.child(chatKey2).removeValue().addOnCompleteListener(innerTask -> {
                     if (innerTask.isSuccessful()) {
-                        // 删除好友请求记录
-                        deleteFriendRequest(currentUserId, friendId);  // 继续删除好友请求
+                        // delete the record of friend request
+                        deleteFriendRequest(currentUserId, friendId);
                     } else {
                         Toast.makeText(FriendProfileActivity.this, "Failed to remove chat history", Toast.LENGTH_SHORT).show();
                     }
