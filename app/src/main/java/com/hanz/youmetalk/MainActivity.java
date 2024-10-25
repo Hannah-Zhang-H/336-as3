@@ -23,6 +23,7 @@ import androidx.work.Constraints;
 import androidx.work.NetworkType;
 import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
+import com.google.android.material.badge.BadgeDrawable;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -32,6 +33,7 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.hanz.youmetalk.databinding.ActivityMainBinding;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -56,6 +58,8 @@ public class MainActivity extends AppCompatActivity
     private String currentAdapter = "chatAdapter";  // default adapter
     public static final int REQUEST_CODE_DELETE_FRIEND = 1001;
 
+    BottomNavigationView bottomNavigationView;
+    BadgeDrawable badgeDrawable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,7 +73,7 @@ public class MainActivity extends AppCompatActivity
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        //init  Firebase
+        //init Firebase
         auth = FirebaseAuth.getInstance();
         user = auth.getCurrentUser();
         database = FirebaseDatabase.getInstance();
@@ -92,7 +96,7 @@ public class MainActivity extends AppCompatActivity
             currentAdapter = savedInstanceState.getString(CURRENT_ADAPTER_KEY, "chatAdapter");
         }
 
-        BottomNavigationView bottomNavigationView = mainLayout.bottomNavigation;
+        bottomNavigationView = mainLayout.bottomNavigation;
         bottomNavigationView.setOnItemSelectedListener(item -> {
             if (item.getItemId() == R.id.action_chat) {
                 currentAdapter = "chatAdapter";
@@ -117,7 +121,7 @@ public class MainActivity extends AppCompatActivity
             loadFriendRequestsAndContacts();
         }
 
-        // message checker scheduler
+        // Schedule message checker to periodically check for unread messages
         Constraints constraints = new Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .setRequiresBatteryNotLow(true)
@@ -130,9 +134,21 @@ public class MainActivity extends AppCompatActivity
 
         WorkManager.getInstance(this).enqueue(workRequest);
 
+        // Check unread messages when activity starts
+        reference.child("Messages").addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                checkForUnreadMessages(snapshot, user.getUid());
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e("MainActivity", "Error loading messages", error.toException());
+            }
+        });
     }
 
-    // check unread messages and send notification
+    // Check unread messages and send notification
     private void checkForUnreadMessages(DataSnapshot snapshot, String userId) {
         int unreadMessageCount = 0;
 
@@ -147,10 +163,13 @@ public class MainActivity extends AppCompatActivity
 
         if (unreadMessageCount > 0) {
             sendNotification(unreadMessageCount);
+            showUnreadMessageBadge(unreadMessageCount);  // Show red dot on chat tab
+        } else {
+            removeUnreadMessageBadge();  // Remove red dot if no unread messages
         }
     }
 
-    // send local notification
+    // Send local notification
     private void sendNotification(int unreadMessageCount) {
         NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
@@ -174,6 +193,21 @@ public class MainActivity extends AppCompatActivity
                 .setContentIntent(pendingIntent);
 
         notificationManager.notify(1, notificationBuilder.build());
+    }
+
+    // Show unread message red dot (badge) on chat tab
+    private void showUnreadMessageBadge(int unreadCount) {
+        badgeDrawable = bottomNavigationView.getOrCreateBadge(R.id.action_chat);
+        badgeDrawable.setVisible(true);
+        badgeDrawable.setNumber(unreadCount);
+    }
+
+    // Remove red dot (badge) from chat tab when there are no unread messages
+    private void removeUnreadMessageBadge() {
+        BadgeDrawable badge = bottomNavigationView.getBadge(R.id.action_chat);
+        if (badge != null) {
+            badge.setVisible(false);
+        }
     }
 
     @Override
@@ -384,6 +418,5 @@ public class MainActivity extends AppCompatActivity
             Log.d("MainActivity", "onActivityResult failed or data is null");
         }
     }
-
 
 }

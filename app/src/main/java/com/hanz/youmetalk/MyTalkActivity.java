@@ -39,7 +39,6 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
 
     private ActivityMyTalkBinding myTalkLayout;
     private RecyclerView recyclerViewMessageArea;
-    private ImageView imageViewBack;
     private TextView textViewChatFriendName;
     private EditText editTextMessage;
     private FloatingActionButton fab;
@@ -53,6 +52,7 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
 
     private MessageAdapter messageAdapter;
     private List<Model> list;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,7 +73,6 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
         recyclerViewMessageArea.setLayoutManager(new LinearLayoutManager(this));
         list = new ArrayList<>();
 
-        imageViewBack = myTalkLayout.imageViewBack;
         textViewChatFriendName = myTalkLayout.textViewChatFriendName;
         editTextMessage = myTalkLayout.editTextMessage;
         fab = myTalkLayout.fab;
@@ -95,8 +94,8 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
         messageAdapter = new MessageAdapter(list, currentUserId, this); // Pass the listener
         recyclerViewMessageArea.setAdapter(messageAdapter);
 
-        // Set up back button functionality
-        imageViewBack.setOnClickListener(view -> onBackPressed());
+
+
 
         fab.setOnClickListener(view -> {
             String message = editTextMessage.getText().toString().trim();
@@ -146,20 +145,6 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
                                 list.add(model);
                                 messageAdapter.notifyDataSetChanged();
                                 recyclerViewMessageArea.scrollToPosition(list.size() - 1);
-
-                                // Check if the message is from friend
-                                if (model.getFrom().equals(friendId) && !model.isRead()) {
-                                    // Update isRead to true
-                                    reference.child("Messages").child(conversationId).child("messages")
-                                            .child(snapshot.getKey()).child("isRead").setValue(true)
-                                            .addOnCompleteListener(task -> {
-                                                if (task.isSuccessful()) {
-                                                    Log.d("MessageStatus", "Message marked as read");
-                                                } else {
-                                                    Log.e("MessageStatus", "Failed to mark message as read");
-                                                }
-                                            });
-                                }
                             }
                         }
                     }
@@ -180,6 +165,16 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
                 });
     }
 
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Mark all unread messages as read when the user views the chat
+        markMessagesAsRead();
+    }
+
+
+
     private void sendMessage(String message) {
         String key = reference.child("Messages").child(conversationId).child("messages").push().getKey();
         if (key != null) {
@@ -187,7 +182,7 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
             messageMap.put("message", message);
             messageMap.put("from", currentUserId);
             messageMap.put("to", friendId);
-            messageMap.put("isRead", false);
+            messageMap.put("isRead", false);  // Mark message as unread
             messageMap.put("timestamp", ServerValue.TIMESTAMP);
 
             reference.child("Messages").child(conversationId).child("messages").child(key)
@@ -215,8 +210,6 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
                 } else {
                     // If the friend no longer exists, show a warning and do not send the message
                     Toast.makeText(MyTalkActivity.this, "This friend has been deleted. You cannot send messages.", Toast.LENGTH_SHORT).show();
-                    // Function to delete friend request record
-                    deleteFriendRequest(currentUserId, friendId);  
                     finish(); // Return to main activity
                 }
             }
@@ -224,32 +217,6 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
                 Log.e("Firebase", "Error checking friend status before sending message", databaseError.toException());
-            }
-        });
-    }
-
-    // Function to delete friend request record
-    private void deleteFriendRequest(String currentUserId, String friendId) {
-        DatabaseReference requestRef = FirebaseDatabase.getInstance().getReference("FriendRequest");
-
-        // Remove any friend request between the current user and the friend
-        requestRef.child(friendId).orderByChild("from").equalTo(currentUserId).addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                for (DataSnapshot requestSnapshot : snapshot.getChildren()) {
-                    requestSnapshot.getRef().removeValue();
-                }
-
-                // Once everything is deleted, return to MainActivity
-                Intent resultIntent = new Intent();
-                resultIntent.putExtra("deletedFriendId", friendId);
-                setResult(RESULT_OK, resultIntent);
-                finish();
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                Toast.makeText(MyTalkActivity.this, "Failed to remove friend request", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -275,6 +242,43 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        markMessagesAsRead();
+    }
+
+    private void markMessagesAsRead() {
+        reference.child("Messages").child(conversationId).child("messages")
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        for (DataSnapshot messageSnapshot : snapshot.getChildren()) {
+                            Model model = messageSnapshot.getValue(Model.class);
+
+                            if (model != null && !model.isRead() && model.getFrom().equals(friendId)) {
+                                // Mark the message as read
+                                reference.child("Messages").child(conversationId).child("messages")
+                                        .child(messageSnapshot.getKey()).child("isRead").setValue(true)
+                                        .addOnCompleteListener(task -> {
+                                            if (task.isSuccessful()) {
+                                                Log.d("MessageStatus", "Message marked as read");
+                                            } else {
+                                                Log.e("MessageStatus", "Failed to mark message as read");
+                                            }
+                                        });
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        Log.e("Firebase", "Error marking messages as read", error.toException());
+                    }
+                });
+    }
+
+
+    @Override
     public void onMessageLongClick(String messageId, View anchorView) {
         showCustomDialog(messageId);
     }
@@ -282,10 +286,8 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
     private void showCustomDialog(String messageId) {
         String[] options = {"Delete"};
 
-        int[] icons = {R.drawable.ic_delete}; // Delete icon
-
         // Instantiate IconTextAdapter
-        IconTextAdapter adapter = new IconTextAdapter(this, options, icons);
+        IconTextAdapter adapter = new IconTextAdapter(this, options, new int[]{R.drawable.ic_delete});
 
         // Create the dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
