@@ -55,7 +55,7 @@ Tap Build number seven times to enable Developer options.
 <img src="./README/signup.png" alt="Signup" width="150" height="300">
 <img src="./README/reset.png" alt="ResetPwd" width="150" height="300">
 <img src="./README/resetpwd.png" alt="ResetPwdlink" width="150" height="300">
-<img src="./README/reset.png" alt="ResetPwd" width="150" height="300">
+<img src="./README/profileimagechange.png" alt="newunreadmessage" width="150" height="300">
 </p>
 <p align="center">
 <img src="./README/chatmodule.png" alt="chatmodule" width="150" height="300">
@@ -72,8 +72,7 @@ Tap Build number seven times to enable Developer options.
 <img src="./README/messagepage.png" alt="newunreadmessage" width="150" height="300">
 </p>
 <p align="center">
-<img src="./README/profileimagechange.png" alt="newunreadmessage" width="150" height="300">
-</p>
+
 ## Update log
 
 ### Version 1.0.0
