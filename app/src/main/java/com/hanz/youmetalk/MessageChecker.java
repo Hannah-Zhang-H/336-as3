@@ -93,7 +93,7 @@ public class MessageChecker extends Worker {
 
         // create notification
         NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(getApplicationContext(), CHANNEL_ID)
-                .setSmallIcon(R.drawable.logo)  // 设置通知图标
+                .setSmallIcon(R.drawable.logo)
                 .setContentTitle("You have " + unreadCount + " unread message(s)")
                 .setContentText("Check your messages.")
                 .setAutoCancel(true)

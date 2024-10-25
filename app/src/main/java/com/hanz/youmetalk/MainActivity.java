@@ -262,13 +262,17 @@ public class MainActivity extends AppCompatActivity
                         }
 
                         @Override
-                        public void onCancelled(@NonNull DatabaseError error) { }
+                        public void onCancelled(@NonNull DatabaseError error) {
+                            Log.e( "onCancelled: ", error.getMessage());
+                        }
                     });
                 }
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) { }
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e("onCancelled: ", error.getMessage());
+            }
         });
 
         recyclerView.setAdapter(contactAdapter);
