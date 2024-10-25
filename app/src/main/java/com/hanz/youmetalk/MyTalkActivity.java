@@ -52,6 +52,7 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
 
     private MessageAdapter messageAdapter;
     private List<Model> list;
+    private boolean isConversationOpen = false; // Check is conservation is open
 
 
     @Override
@@ -95,8 +96,6 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
         recyclerViewMessageArea.setAdapter(messageAdapter);
 
 
-
-
         fab.setOnClickListener(view -> {
             String message = editTextMessage.getText().toString().trim();
             if (!message.isEmpty()) {
@@ -125,7 +124,13 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
     // Play send message sound effect
     private void playNotificationSound(int sound) {
         MediaPlayer mediaPlayer = MediaPlayer.create(this, sound);
-        mediaPlayer.start();
+        if (mediaPlayer != null) {
+            mediaPlayer.start();
+            mediaPlayer.setOnCompletionListener(MediaPlayer::release);
+            Log.e("Audio", "Notification sound played successfully");
+        } else {
+            Log.e("Audio", "Failed to play notification sound");
+        }
     }
 
     private String getConversationId(String userId1, String userId2) {
@@ -145,18 +150,27 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
                                 list.add(model);
                                 messageAdapter.notifyDataSetChanged();
                                 recyclerViewMessageArea.scrollToPosition(list.size() - 1);
+
+
+                                // Only play sound if the message is from the friend, is unread, and the conversation is not open
+                                if (model.getFrom().equals(friendId) && !model.isRead() && !isConversationOpen) {
+                                    playNotificationSound(R.raw.new_message);
+                                }
                             }
                         }
                     }
 
                     @Override
-                    public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {}
+                    public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                    }
 
                     @Override
-                    public void onChildRemoved(@NonNull DataSnapshot snapshot) {}
+                    public void onChildRemoved(@NonNull DataSnapshot snapshot) {
+                    }
 
                     @Override
-                    public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {}
+                    public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                    }
 
                     @Override
                     public void onCancelled(@NonNull DatabaseError error) {
@@ -166,14 +180,14 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
     }
 
 
+
     @Override
     protected void onResume() {
         super.onResume();
-        // Mark all unread messages as read when the user views the chat
-        markMessagesAsRead();
+        isConversationOpen = true;
+        markMessagesAsRead();  // Mark all unread messages as read when the user views the chat
+
     }
-
-
 
     private void sendMessage(String message) {
         String key = reference.child("Messages").child(conversationId).child("messages").push().getKey();
@@ -210,6 +224,8 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
                 } else {
                     // If the friend no longer exists, show a warning and do not send the message
                     Toast.makeText(MyTalkActivity.this, "This friend has been deleted. You cannot send messages.", Toast.LENGTH_SHORT).show();
+                    // Function to delete friend request record
+                    deleteFriendRequest(currentUserId, friendId);
                     finish(); // Return to main activity
                 }
             }
@@ -217,6 +233,29 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
                 Log.e("Firebase", "Error checking friend status before sending message", databaseError.toException());
+            }
+        });
+    }
+
+    // Function to delete friend request record
+    private void deleteFriendRequest(String currentUserId, String friendId) {
+        DatabaseReference requestRef = FirebaseDatabase.getInstance().getReference("FriendRequest");
+        // Remove any friend request between the current user and the friend
+        requestRef.child(friendId).orderByChild("from").equalTo(currentUserId).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                for (DataSnapshot requestSnapshot : snapshot.getChildren()) {
+                    requestSnapshot.getRef().removeValue();
+                }
+                // Once everything is deleted, return to MainActivity
+                Intent resultIntent = new Intent();
+                resultIntent.putExtra("deletedFriendId", friendId);
+                setResult(RESULT_OK, resultIntent);
+                finish();
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(MyTalkActivity.this, "Failed to remove friend request", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -245,6 +284,7 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
     protected void onPause() {
         super.onPause();
         markMessagesAsRead();
+        isConversationOpen = false;
     }
 
     private void markMessagesAsRead() {
