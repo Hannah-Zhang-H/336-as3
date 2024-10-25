@@ -6,16 +6,36 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
+
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+
+import java.util.Objects;
+
+/**
+ * MessageChecker is a background Worker that checks Firebase for unread messages and triggers notifications.
+ *
+ * Features:
+ * - Periodically checks Firebase for unread messages targeted at the current user.
+ * - Sends a notification with the unread message count, encouraging the user to view them.
+ *
+ * Main Methods:
+ * - `doWork()`: Executes the message check.
+ * - `checkForUnreadMessages()`: Connects to Firebase to count unread messages.
+ * - `sendNotification(int unreadCount)`: Displays a notification with the count of unread messages.
+ *
+ * Notifications:
+ * - Uses a NotificationChannel (API 26+) and opens MainActivity upon tap for easy message access.
+ */
 
 
 public class MessageChecker extends Worker {
@@ -39,10 +59,7 @@ public class MessageChecker extends Worker {
         FirebaseDatabase database = FirebaseDatabase.getInstance();
         DatabaseReference messagesRef = database.getReference("Messages");
 
-        String currentUserId = auth.getCurrentUser().getUid();
-        if (currentUserId == null) {
-            return; // if no user signed in, do not check
-        }
+        String currentUserId = Objects.requireNonNull(auth.getCurrentUser()).getUid();
 
         messagesRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override

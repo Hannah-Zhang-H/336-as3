@@ -2,6 +2,27 @@ package com.hanz.youmetalk;
 
 import java.util.List;
 
+/**
+ * The `Model` class represents a chat message model in the YouMeTalk application, holding details about
+ * each message and its associated metadata.
+ * <p>
+ * Fields:
+ * - `message` (String): The text content of the message.
+ * - `from` (String): The ID of the user who sent the message.
+ * - `image` (String): Optional image URL for an image message.
+ * - `deleted_for` (List<String>): List of user IDs for whom the message is marked as deleted.
+ * - `timestamp` (long): The time the message was sent, stored as a Unix timestamp.
+ * - `messageId` (String): Unique identifier for each message.
+ * - `isRead` (boolean): Flag indicating whether the message has been read by the recipient.
+ * <p>
+ * Constructor:
+ * - Default constructor for initializing a `Model` instance.
+ * <p>
+ * Getter/Setter Methods:
+ * - Provides getter and setter methods for each field to retrieve and modify message details.
+ * - Includes null checks for fields like `message`, `from`, and `image` to ensure non-null values.
+ */
+
 public class Model {
     private String message;
     private String from;
@@ -11,7 +32,8 @@ public class Model {
     private String messageId;
     private boolean isRead;
 
-    public Model() {}
+    public Model() {
+    }
 
     public String getMessage() {
         return message != null ? message : "";

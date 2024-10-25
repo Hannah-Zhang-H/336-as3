@@ -1,34 +1,44 @@
 package com.hanz.youmetalk;
 
 import android.content.Intent;
-import android.content.pm.ActivityInfo;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
 import com.google.android.material.textfield.TextInputEditText;
-import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.hanz.youmetalk.databinding.ActivityLoginBinding;
-import com.hanz.youmetalk.databinding.ActivityMainBinding;
+
+import java.util.Objects;
+
+/**
+ * LoginActivity manages the user login process in YouMeTalk, including sign-in, account creation, and password reset options.
+ *
+ * Key Features:
+ * - Redirects already signed-in users to MainActivity on start.
+ * - Uses Firebase Authentication for email/password login.
+ * - Provides navigation to SignUpActivity and ResetPasswordActivity.
+ *
+ * Main Methods:
+ * - `signIn(String email, String password)`: Authenticates and redirects to MainActivity upon success.
+ *
+ * UI:
+ * - Configures EdgeToEdge for a seamless full-screen experience.
+ * - Uses view binding to simplify UI setup.
+ */
+
 
 public class LoginActivity extends AppCompatActivity {
 
-    private ActivityLoginBinding loginLayout;
     private TextInputEditText editTextEmail, editTextPassword;
-    private Button buttonSignin;
-    private TextView textViewSignup, textViewForget;
 
     // Database
     FirebaseAuth auth;
@@ -46,7 +56,7 @@ public class LoginActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         // Inflating the layout takes the XML source and makes View objects
-        loginLayout = ActivityLoginBinding.inflate(getLayoutInflater());
+        com.hanz.youmetalk.databinding.ActivityLoginBinding loginLayout = ActivityLoginBinding.inflate(getLayoutInflater());
         // Get the root View
         setContentView(loginLayout.getRoot());
         EdgeToEdge.enable(this);
@@ -59,16 +69,16 @@ public class LoginActivity extends AppCompatActivity {
         // Assign values
         editTextEmail = loginLayout.editTextEmail;
         editTextPassword = loginLayout.editTextPassword;
-        buttonSignin = loginLayout.buttonSignin;
-        textViewSignup = loginLayout.textViewSignup;
-        textViewForget = loginLayout.textViewForgetPassword;
+        Button buttonSignin = loginLayout.buttonSignin;
+        TextView textViewSignup = loginLayout.textViewSignup;
+        TextView textViewForget = loginLayout.textViewForgetPassword;
         auth = FirebaseAuth.getInstance();
 
 
         // Add click listener to buttonSignin
         buttonSignin.setOnClickListener(view -> {
-            String email = editTextEmail.getText().toString();
-            String password = editTextPassword.getText().toString();
+            String email = Objects.requireNonNull(editTextEmail.getText()).toString();
+            String password = Objects.requireNonNull(editTextPassword.getText()).toString();
             if (!email.isEmpty() && !password.isEmpty()) signIn(email, password);
             else
                 Toast.makeText(LoginActivity.this, "Please enter an email and password.", Toast.LENGTH_SHORT).show();

@@ -7,8 +7,10 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+
 import com.bumptech.glide.Glide;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.auth.FirebaseAuth;
@@ -20,16 +22,33 @@ import com.google.firebase.database.ValueEventListener;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import de.hdodenhof.circleimageview.CircleImageView;
+/**
+ * AddFriendActivity facilitates searching for users by YouMeID and sending friend requests.
+ *
+ * Key Features:
+ * - Allows users to search for others by YouMeID, ensuring they cannot add themselves.
+ * - Displays found user details and profile image using Glide.
+ * - Sends friend requests with Firebase Database integration, handling cases of duplicate, accepted, or declined requests.
+ *
+ * Main Methods:
+ * - `searchUser()`: Searches Firebase for the entered YouMeID and displays the user if found.
+ * - `sendFriendRequest()`: Sends a friend request if the user isn't already a friend or awaiting request.
+ * - `restoreUserInfo(String userName, String youMeId, String userImageUrl)`: Restores and displays user data on screen rotation.
+ *
+ * UI:
+ * - Uses view binding for simplified UI setup and handling.
+ * - Implements back navigation to MainActivity.
+ */
 
 public class AddFriendActivity extends AppCompatActivity {
     private TextInputEditText editTextYouMeID;
-    private Button buttonSearch, buttonAddFriend;
+    private Button buttonAddFriend;
     private CircleImageView profileImageView;
     private TextView textViewUserName, textViewYouMeID;
     private TextView labelUserName, labelYouMeID; // Added labels
-    private ImageView imageViewBack;
     private DatabaseReference reference;
     private FirebaseAuth auth;
     private String searchedUserId;
@@ -48,14 +67,14 @@ public class AddFriendActivity extends AppCompatActivity {
 
         // view binding
         editTextYouMeID = findViewById(R.id.editTextYouMeID);
-        buttonSearch = findViewById(R.id.buttonSearch);
+        Button buttonSearch = findViewById(R.id.buttonSearch);
         buttonAddFriend = findViewById(R.id.buttonAddFriend);
         profileImageView = findViewById(R.id.imageViewProfile);
         textViewUserName = findViewById(R.id.textViewUserName);
         textViewYouMeID = findViewById(R.id.textViewYouMeID);
         labelUserName = findViewById(R.id.labelUserName);
         labelYouMeID = findViewById(R.id.labelYouMeID);
-        imageViewBack = findViewById(R.id.imageViewBack);
+        ImageView imageViewBack = findViewById(R.id.imageViewBack);
 
         auth = FirebaseAuth.getInstance();
         reference = FirebaseDatabase.getInstance().getReference();
@@ -90,7 +109,7 @@ public class AddFriendActivity extends AppCompatActivity {
 
     // read the YouMeID of current user
     private void loadCurrentUserYouMeId() {
-        String currentUserId = auth.getCurrentUser().getUid();
+        String currentUserId = Objects.requireNonNull(auth.getCurrentUser()).getUid();
         reference.child("Users").child(currentUserId).addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
@@ -105,7 +124,7 @@ public class AddFriendActivity extends AppCompatActivity {
     }
 
     private void searchUser() {
-        final String searchYouMeId = editTextYouMeID.getText().toString().trim();
+        final String searchYouMeId = Objects.requireNonNull(editTextYouMeID.getText()).toString().trim();
         if (searchYouMeId.isEmpty()) {
             Toast.makeText(this, "Please enter a YouMeID", Toast.LENGTH_SHORT).show();
             return;
@@ -162,7 +181,7 @@ public class AddFriendActivity extends AppCompatActivity {
             return;
         }
 
-        String currentUserId = auth.getCurrentUser().getUid();
+        String currentUserId = Objects.requireNonNull(auth.getCurrentUser()).getUid();
         DatabaseReference currentUserFriendsRef = reference.child("Users").child(currentUserId).child("Friends");
 
         // check if the searched user already in the friend list

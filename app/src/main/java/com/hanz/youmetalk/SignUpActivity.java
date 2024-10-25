@@ -1,5 +1,6 @@
 package com.hanz.youmetalk;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -29,6 +30,7 @@ import com.hanz.youmetalk.databinding.ActivitySignUpBinding;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import de.hdodenhof.circleimageview.CircleImageView;
@@ -36,15 +38,28 @@ import de.hdodenhof.circleimageview.CircleImageView;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * SignUpActivity facilitates user registration, including profile setup, image upload, and Firebase storage.
+ * <p>
+ * Key Features:
+ * - Firebase Integration: Registers users with Firebase Authentication and stores user info in the database.
+ * - Unique Identifier Checks: Ensures unique email and YouMeID before registration.
+ * - Profile Image Upload: Allows users to upload an image with progress tracking.
+ * <p>
+ * Main Methods:
+ * - `checkEmailUnique()`: Validates email uniqueness.
+ * - `checkYouMeIdUnique()`: Ensures YouMeID is unique.
+ * - `signup()`: Registers the user with Firebase Authentication and stores data.
+ * - `uploadUserImage()`: Uploads profile image to Firebase Storage with progress feedback.
+ */
+
 public class SignUpActivity extends AppCompatActivity {
-    private ExecutorService executorService = Executors.newSingleThreadExecutor(); // For uploading image in a new thread
+    private final ExecutorService executorService = Executors.newSingleThreadExecutor(); // For uploading image in a new thread
     private ProgressBar progressBar; // ProgressBar for tracking upload progress
     private TextView progressText;  // Display progressbar progress text
 
-    private ActivitySignUpBinding signUpLayout;
     private CircleImageView imageViewCircle;
     private TextInputEditText editTextEmailSignup, editTextPasswordSignup, editTextTextUserNameSignup, editTextYouMeIdSignup;
-    private Button buttonRegister;
 
     boolean imageControl = false;
 
@@ -61,7 +76,7 @@ public class SignUpActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        signUpLayout = ActivitySignUpBinding.inflate(getLayoutInflater());
+        com.hanz.youmetalk.databinding.ActivitySignUpBinding signUpLayout = ActivitySignUpBinding.inflate(getLayoutInflater());
         setContentView(signUpLayout.getRoot());
 
         // Initialize Firebase components
@@ -79,7 +94,7 @@ public class SignUpActivity extends AppCompatActivity {
         editTextPasswordSignup = signUpLayout.editTextPasswordSignup;
         editTextTextUserNameSignup = signUpLayout.editTextUserNameSignup;
         editTextYouMeIdSignup = signUpLayout.editTextYouMeIdSignup;
-        buttonRegister = signUpLayout.buttonRegister;
+        Button buttonRegister = signUpLayout.buttonRegister;
 
         // Initialize image chooser launcher
         imageChooserLauncher = registerForActivityResult(
@@ -106,10 +121,10 @@ public class SignUpActivity extends AppCompatActivity {
         imageViewCircle.setOnClickListener(view -> imageChooser());
 
         buttonRegister.setOnClickListener(view -> {
-            String email = editTextEmailSignup.getText().toString();
-            String password = editTextPasswordSignup.getText().toString();
-            String userName = editTextTextUserNameSignup.getText().toString();
-            String youMeId = editTextYouMeIdSignup.getText().toString();
+            String email = Objects.requireNonNull(editTextEmailSignup.getText()).toString();
+            String password = Objects.requireNonNull(editTextPasswordSignup.getText()).toString();
+            String userName = Objects.requireNonNull(editTextTextUserNameSignup.getText()).toString();
+            String youMeId = Objects.requireNonNull(editTextYouMeIdSignup.getText()).toString();
 
             if (email.isEmpty() || password.isEmpty() || userName.isEmpty() || youMeId.isEmpty()) {
                 Toast.makeText(SignUpActivity.this, "Please fill in all fields.", Toast.LENGTH_SHORT).show();
@@ -178,18 +193,17 @@ public class SignUpActivity extends AppCompatActivity {
                         reference.child("Users").child(uid).setValue(userMap).addOnSuccessListener(unused -> {
                             Toast.makeText(SignUpActivity.this, "Successfully registered and stored to database.", Toast.LENGTH_SHORT).show();
                             navigateToMain();
-                        }).addOnFailureListener(e -> {
-                            Toast.makeText(SignUpActivity.this, "Failed to store to database.", Toast.LENGTH_SHORT).show();
-                        });
+                        }).addOnFailureListener(e -> Toast.makeText(SignUpActivity.this, "Failed to store to database.", Toast.LENGTH_SHORT).show());
                     }
                 }
             } else {
-                Toast.makeText(SignUpActivity.this, "Sign-up failed: " + task.getException().getMessage(), Toast.LENGTH_LONG).show();
+                Toast.makeText(SignUpActivity.this, "Sign-up failed: " + Objects.requireNonNull(task.getException()).getMessage(), Toast.LENGTH_LONG).show();
             }
         });
     }
 
     // Upload user image to Firebase Storage with progress listener and text update
+    @SuppressLint("SetTextI18n")
     private void uploadUserImage(Map<String, Object> userMap, String uid) {
         UUID randomID = UUID.randomUUID();
         String imageName = "images/" + randomID + ".jpg";
@@ -211,24 +225,20 @@ public class SignUpActivity extends AppCompatActivity {
                     progressBar.setProgress((int) progress);
                     progressText.setText("Upload Progress: " + (int) progress + "%");
                 });
-            }).addOnSuccessListener(taskSnapshot -> {
-                imageRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                    String filePath = uri.toString();
-                    userMap.put("image", filePath);
-                    reference.child("Users").child(uid).setValue(userMap).addOnSuccessListener(unused -> {
-                        runOnUiThread(() -> {
-                            Toast.makeText(SignUpActivity.this, "Successfully registered and stored to database.", Toast.LENGTH_SHORT).show();
-                            progressBar.setVisibility(View.GONE); // Hide progress bar after upload
-                            progressText.setVisibility(View.GONE); // Hide progress text after upload
-                            navigateToMain();
-                        });
-                    }).addOnFailureListener(e -> runOnUiThread(() -> {
-                        Toast.makeText(SignUpActivity.this, "Failed to store to database.", Toast.LENGTH_SHORT).show();
-                        progressBar.setVisibility(View.GONE); // Hide progress bar on failure
-                        progressText.setVisibility(View.GONE); // Hide progress text on failure
-                    }));
-                });
-            }).addOnFailureListener(e -> runOnUiThread(() -> {
+            }).addOnSuccessListener(taskSnapshot -> imageRef.getDownloadUrl().addOnSuccessListener(uri -> {
+                String filePath = uri.toString();
+                userMap.put("image", filePath);
+                reference.child("Users").child(uid).setValue(userMap).addOnSuccessListener(unused -> runOnUiThread(() -> {
+                    Toast.makeText(SignUpActivity.this, "Successfully registered and stored to database.", Toast.LENGTH_SHORT).show();
+                    progressBar.setVisibility(View.GONE); // Hide progress bar after upload
+                    progressText.setVisibility(View.GONE); // Hide progress text after upload
+                    navigateToMain();
+                })).addOnFailureListener(e -> runOnUiThread(() -> {
+                    Toast.makeText(SignUpActivity.this, "Failed to store to database.", Toast.LENGTH_SHORT).show();
+                    progressBar.setVisibility(View.GONE); // Hide progress bar on failure
+                    progressText.setVisibility(View.GONE); // Hide progress text on failure
+                }));
+            })).addOnFailureListener(e -> runOnUiThread(() -> {
                 Toast.makeText(SignUpActivity.this, "Image upload failed.", Toast.LENGTH_SHORT).show();
                 progressBar.setVisibility(View.GONE); // Hide progress bar on failure
                 progressText.setVisibility(View.GONE); // Hide progress text on failure

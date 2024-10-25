@@ -2,9 +2,6 @@ package com.hanz.youmetalk;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
-import android.content.pm.ActivityInfo;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
@@ -33,23 +30,36 @@ import com.google.firebase.storage.StorageReference;
 import com.hanz.youmetalk.databinding.ActivityProfileBinding;
 import com.squareup.picasso.Picasso;
 
-import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
+/**
+ * ProfileActivity manages user profile updates, including display name, YouMeID, and profile picture.
+ * <p>
+ * Key Features:
+ * - User Data: Uses Firebase for authentication, data storage, and profile picture upload.
+ * - Uniqueness Check: Ensures YouMeID is unique across users.
+ * - Image Selection and Upload: Allows users to pick a profile picture and shows upload progress.
+ * <p>
+ * Main Methods:
+ * - `getUserInfo()`: Loads current user data from Firebase.
+ * - `checkAndUpdateProfile()`: Validates input and ensures YouMeID uniqueness.
+ * - `updateProfile()`: Updates profile information, including uploading a new image if selected.
+ */
+
+
 public class ProfileActivity extends AppCompatActivity {
     // Initialize ExecutorService for background tasks
-    private ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private ProgressBar progressBar; // ProgressBar
     private TextView progressText;  // ProgressBar text to remind the user
-    private ActivityProfileBinding profileLayout;
     private CircleImageView imageViewProfile;
     private TextInputEditText editTextUserNameUpdate, editTextYouMeIdUpdate;
-    private Button buttonUpdate;
 
     FirebaseAuth auth;
     FirebaseUser firebaseUser;
@@ -67,7 +77,7 @@ public class ProfileActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        profileLayout = ActivityProfileBinding.inflate(getLayoutInflater());
+        com.hanz.youmetalk.databinding.ActivityProfileBinding profileLayout = ActivityProfileBinding.inflate(getLayoutInflater());
         setContentView(profileLayout.getRoot());
 
         // Initialize Firebase components
@@ -82,7 +92,7 @@ public class ProfileActivity extends AppCompatActivity {
         imageViewProfile = profileLayout.imageViewCircleProfile;
         editTextUserNameUpdate = profileLayout.editTextUserNameUpdate;
         editTextYouMeIdUpdate = profileLayout.editTextYouMeIdUpdate;
-        buttonUpdate = profileLayout.buttonUpdate;
+        Button buttonUpdate = profileLayout.buttonUpdate;
         progressBar = profileLayout.uploadProgressBarProfile;  // Initialize the ProgressBar
         progressText = profileLayout.uploadProgressTextProfile; // Initialize the ProgressText
 
@@ -150,8 +160,8 @@ public class ProfileActivity extends AppCompatActivity {
     }
 
     public void checkAndUpdateProfile() throws FileNotFoundException {
-        String userName = editTextUserNameUpdate.getText().toString().trim();
-        String youMeId = editTextYouMeIdUpdate.getText().toString().trim();
+        String userName = Objects.requireNonNull(editTextUserNameUpdate.getText()).toString().trim();
+        String youMeId = Objects.requireNonNull(editTextYouMeIdUpdate.getText()).toString().trim();
 
         if (userName.isEmpty() || youMeId.isEmpty()) {
             Toast.makeText(this, "Username or YouMeID cannot be empty.", Toast.LENGTH_SHORT).show();
@@ -203,22 +213,20 @@ public class ProfileActivity extends AppCompatActivity {
                         progressBar.setProgress((int) progress);
                         progressText.setText("Upload Progress: " + (int) progress + "%");
                     });
-                }).addOnSuccessListener(taskSnapshot -> {
-                    imageRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                        String filePath = uri.toString();
-                        reference.child("Users").child(firebaseUser.getUid()).child("image").setValue(filePath)
-                                .addOnSuccessListener(unused -> runOnUiThread(() -> {
-                                    Toast.makeText(ProfileActivity.this, "Profile updated successfully.", Toast.LENGTH_SHORT).show();
-                                    progressBar.setVisibility(View.GONE);
-                                    progressText.setVisibility(View.GONE);
-                                }))
-                                .addOnFailureListener(e -> runOnUiThread(() -> {
-                                    Toast.makeText(ProfileActivity.this, "Failed to update profile.", Toast.LENGTH_SHORT).show();
-                                    progressBar.setVisibility(View.GONE);
-                                    progressText.setVisibility(View.GONE);
-                                }));
-                    });
-                }).addOnFailureListener(e -> runOnUiThread(() -> {
+                }).addOnSuccessListener(taskSnapshot -> imageRef.getDownloadUrl().addOnSuccessListener(uri -> {
+                    String filePath = uri.toString();
+                    reference.child("Users").child(firebaseUser.getUid()).child("image").setValue(filePath)
+                            .addOnSuccessListener(unused -> runOnUiThread(() -> {
+                                Toast.makeText(ProfileActivity.this, "Profile updated successfully.", Toast.LENGTH_SHORT).show();
+                                progressBar.setVisibility(View.GONE);
+                                progressText.setVisibility(View.GONE);
+                            }))
+                            .addOnFailureListener(e -> runOnUiThread(() -> {
+                                Toast.makeText(ProfileActivity.this, "Failed to update profile.", Toast.LENGTH_SHORT).show();
+                                progressBar.setVisibility(View.GONE);
+                                progressText.setVisibility(View.GONE);
+                            }));
+                })).addOnFailureListener(e -> runOnUiThread(() -> {
                     Toast.makeText(ProfileActivity.this, "Image upload failed.", Toast.LENGTH_SHORT).show();
                     progressBar.setVisibility(View.GONE);
                     progressText.setVisibility(View.GONE);

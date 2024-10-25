@@ -1,12 +1,12 @@
 package com.hanz.youmetalk;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -34,21 +34,35 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+
+/**
+ * MyTalkActivity manages chat interactions between the current user and a friend, supporting real-time messaging,
+ * message deletion, and status checks.
+ *
+ * Key Features:
+ * - Firebase Database Integration: Real-time message sync and user relationship management.
+ * - MessageAdapter: Displays chat messages with long-click options like message deletion.
+ * - Notifications: Plays sounds for sent and received messages and alerts for friend status changes.
+ *
+ * Main Functions:
+ * - `sendMessage(String message)`: Sends messages if the friend relationship is active.
+ * - `loadMessages()`: Loads and manages message read/unread status.
+ * - `checkFriendStatus()`: Validates friend status before chat actions.
+ * - `deleteMessage(String messageId)`: Soft deletes messages for the current user.
+ */
+
 
 public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.OnMessageLongClickListener {
 
-    private ActivityMyTalkBinding myTalkLayout;
     private RecyclerView recyclerViewMessageArea;
-    private TextView textViewChatFriendName;
     private EditText editTextMessage;
-    private FloatingActionButton fab;
 
-    private String currentUserId, friendId, friendName;
+    private String currentUserId;
+    private String friendId;
     private String conversationId;
 
-    private FirebaseDatabase database;
     private DatabaseReference reference;
-    private FirebaseUser firebaseUser;
 
     private MessageAdapter messageAdapter;
     private List<Model> list;
@@ -58,11 +72,11 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        myTalkLayout = ActivityMyTalkBinding.inflate(getLayoutInflater());
+        com.hanz.youmetalk.databinding.ActivityMyTalkBinding myTalkLayout = ActivityMyTalkBinding.inflate(getLayoutInflater());
         setContentView(myTalkLayout.getRoot());
 
         // Initialize FirebaseUser
-        firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+        FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
         if (firebaseUser == null) {
             Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show();
             finish();
@@ -74,12 +88,12 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
         recyclerViewMessageArea.setLayoutManager(new LinearLayoutManager(this));
         list = new ArrayList<>();
 
-        textViewChatFriendName = myTalkLayout.textViewChatFriendName;
+        TextView textViewChatFriendName = myTalkLayout.textViewChatFriendName;
         editTextMessage = myTalkLayout.editTextMessage;
-        fab = myTalkLayout.fab;
+        FloatingActionButton fab = myTalkLayout.fab;
 
         friendId = getIntent().getStringExtra("friendId");
-        friendName = getIntent().getStringExtra("friendName");
+        String friendName = getIntent().getStringExtra("friendName");
 
         if (friendId == null || friendName == null) {
             Toast.makeText(this, "Friend data missing", Toast.LENGTH_SHORT).show();
@@ -87,7 +101,7 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
             return;
         }
 
-        database = FirebaseDatabase.getInstance();
+        FirebaseDatabase database = FirebaseDatabase.getInstance();
         reference = database.getReference();
 
         textViewChatFriendName.setText(friendName);
@@ -140,6 +154,7 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
     private void loadMessages() {
         reference.child("Messages").child(conversationId).child("messages")
                 .addChildEventListener(new ChildEventListener() {
+                    @SuppressLint("NotifyDataSetChanged")
                     @Override
                     public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
                         Model model = snapshot.getValue(Model.class);
@@ -178,7 +193,6 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
                     }
                 });
     }
-
 
 
     @Override
@@ -253,6 +267,7 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
                 setResult(RESULT_OK, resultIntent);
                 finish();
             }
+
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 Toast.makeText(MyTalkActivity.this, "Failed to remove friend request", Toast.LENGTH_SHORT).show();
@@ -298,7 +313,7 @@ public class MyTalkActivity extends AppCompatActivity implements MessageAdapter.
                             if (model != null && !model.isRead() && model.getFrom().equals(friendId)) {
                                 // Mark the message as read
                                 reference.child("Messages").child(conversationId).child("messages")
-                                        .child(messageSnapshot.getKey()).child("isRead").setValue(true)
+                                        .child(Objects.requireNonNull(messageSnapshot.getKey())).child("isRead").setValue(true)
                                         .addOnCompleteListener(task -> {
                                             if (task.isSuccessful()) {
                                                 Log.d("MessageStatus", "Message marked as read");
