@@ -82,7 +82,7 @@ public class UsersAdapter extends RecyclerView.Adapter<UsersAdapter.ViewHolder> 
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                // 处理取消的情况
+
             }
         });
     }

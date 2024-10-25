@@ -133,14 +133,14 @@ public class FriendProfileActivity extends AppCompatActivity {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 for (DataSnapshot requestSnapshot : snapshot.getChildren()) {
-                    requestSnapshot.getRef().removeValue();  // 删除请求记录
+                    requestSnapshot.getRef().removeValue();
                 }
 
                 // Once everything is deleted, return to MainActivity
                 Intent resultIntent = new Intent();
                 resultIntent.putExtra("deletedFriendId", friendId);
                 setResult(RESULT_OK, resultIntent);
-                finish();  // 关闭 FriendProfileActivity 返回 MainActivity
+                finish();
             }
 
             @Override
