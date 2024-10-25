@@ -215,7 +215,14 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
 
         // update last message
         String lastMessageContent = lastMessages.getOrDefault(chatUserId, "No messages yet");
+        int maxLength = 15;  // Set the max length for the last message
+
+        assert lastMessageContent != null;
+        if (lastMessageContent.length() > maxLength) {
+            lastMessageContent = lastMessageContent.substring(0, maxLength) + "...";
+        }
         holder.lastMessage.setText(lastMessageContent);
+
 
         // update timestamp
         long lastMessageTimestamp = lastMessageTimestamps.getOrDefault(chatUserId, 0L);
@@ -263,7 +270,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
             }
         }
 
-        Log.d("ChatAdapter", "Removing friend from chat list: " + friendId);  // 打印日志以检查删除的好友
+        Log.d("ChatAdapter", "Removing friend from chat list: " + friendId);
         chatUserList.clear();
         chatUserList.addAll(updatedUserList);
 
@@ -274,7 +281,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder
         hasUnreadMessages.remove(friendId);
 
 
-        Log.d("ChatAdapter", "Chat list size after removal: " + chatUserList.size());  // 打印新的列表长度
+        Log.d("ChatAdapter", "Chat list size after removal: " + chatUserList.size());
         notifyDataSetChanged();  // Notify the adapter to refresh the view
     }
 
